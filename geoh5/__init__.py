@@ -27,10 +27,10 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
     # should we pass to different read write classes based on the mode?
     if mode == 'r':
         fid = h5py.File(path, mode)
-        ds = KeaH5RDOnly(fid)
+        ds = KeaImageRead(fid)
     elif mode == 'r+':
         fid = h5py.File(path, mode)
-        ds = KeaH5RW(fid)
+        ds = KeaImageReadWrite(fid)
     elif mode =='w':
         # Check we have all the necessary creation options
         if (width is None) or (height is None):
@@ -71,7 +71,10 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
         create_kea_image(fid, width, height, count, transform, crs, no_data,
                          dtype, chunks, blocksize, compression, band_names)
 
-        ds = KeaH5RW(fid)
+        ds = KeaImageReadWrite(fid)
+
+    # populate the Kea class
+    ds._read_kea()
 
     return ds
         
@@ -187,151 +190,3 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
 
     # flush any cached items
     fid.flush()
-
-
-# TODO
-# maybe we could use a base class that retrieves and sets
-# the various properties such as header, width, height, crs, transfrom etc
-
-class KeaH5RDOnly(object):
-
-    def __init__(self, fid):
-        self._fid = fid
-        self.header = self._read_header()
-        self.width = self.header['SIZE'][0]
-        self.height = self.header['SIZE'][1]
-        self.count = self.header['NUMBANDS']
-        self.band_groups = self._band_groups()
-        self.band_datasets = self._band_datasets()
-
-    def _read_header(self):
-        _hdr = self._fid['HEADER']
-        hdr = {}
-        for key in _hdr:
-            hdr[key] = _hdr[key][:]
-        return hdr
-
-    def _band_groups(self):
-        gname_fmt = 'BAND{}'
-        band_groups = {}
-        for band in range(1, self.count + 1):
-            grp = gname_fmt.format(band)
-            band_groups[band] = self._fid[grp]
-        return band_groups
-
-    def _band_datasets(self):
-        bname_fmt = 'BAND{}/DATA'
-        bnd_dsets = {}
-        for band in range(1, self.count + 1):
-            dset = bname_fmt.format(band)
-            bnd_dsets[band] = self._fid[dset]
-        return bnd_dsets
-
-    @property
-    def crs(self):
-        sr = osr.SpatialReference()
-        sr.ImportFromWkt(self.header['WKT'][0])
-        crs = from_string(sr.ExportToProj4())
-        return crs
-
-    @property
-    def transform(self):
-        transform = [self.header['TL'][0],
-                     self.header['RES'][0],
-                     self.header['ROT'][0],
-                     self.header['TL'][1],
-                     self.header['ROT'][1],
-                     self.header['RES'][1]]
-        return Affine.from_gdal(*transform)
-
-    @property
-    def no_data(self):
-        # Do we return a no data value for each band dataset???
-        # dict mapping or plain list. dict would allow different nan's
-        # for different bands
-        no_data = []
-        for bgrp in self.band_groups:
-            no_data.append(self.band_groups[bgrp]['NO_DATA_VAL'][0])
-        return no_data
-
-    @property
-    def dtypes(self):
-        dtypes = []
-        for bgrp in self.band_groups:
-            dtype = self.band_groups[bgrp]['DATATYPE'][0]
-            dtypes.append(KEA2NUMPYDTYPE[dtype])
-        return dtypes
-
-    @property
-    def chunks(self):
-        chunks = self.band_datasets[1].chunks
-        return chunks
-
-    @property
-    def metadata(self):
-        metadata = {}
-        for key in self._fid['METADATA']:
-            metadata[key] = self._fid[key][:]
-
-    @property
-    def description(self):
-        description = []
-        for bgrp in self.band_groups:
-            description.append(self.band_groups[bgrp]['DESCRIPTION'][0])
-        return description
-
-    # TODO have a dict mapping to a string equivalent
-    @property
-    def layer_useage(self):
-        layer_useage = []
-        for bgrp in self.band_groups:
-            layer_useage.append(self.band_groups[bgrp]['LAYER_USAGE'][0])
-        return layer_useage
-
-    # TODO have a dict mapping to a string equivalent
-    @property
-    def layer_type(self):
-        layer_type = []
-        for bgrp in self.band_groups:
-            layer_type.append(self.band_groups[bgrp]['LAYER_TYPE'][0])
-        return layer_type
-
-    # TODO retrieve the metadata and band names
-
-    def read(self, bands, window=None):
-        if isinstance(bands, collections.Sequence):
-            nb = len(bands)
-            if window is None:
-                data = numpy.zeros((nb, self.height, self.width),
-                                   dtype=self.dtypes[0])
-                for i, band in enumerate(bands):
-                    self.band_datasets[band].read_direct(data[i])
-            else:
-                ys, ye = window[0]
-                xs, xe = window[1]
-                ysize = ye - ys
-                xsize = xe - xs
-                idx = numpy.s_[ys:ye, xs:xe]
-                data = numpy.zeros((nb, ysize, xsize),
-                                   dtype=self.dtypes[0])
-                for i, band in enumerate(bands):
-                    self.band_datasets[band].read_direct(data[i], idx)
-        else:
-            if window is None:
-                data = self.band_datasets[bands][:]
-            else:
-                ys, ye = window[0]
-                xs, xe = window[1]
-                idx = numpy.s_[ys:ye, xs:xe]
-                data = self.band_datasets[bands][idx]
-                
-        return data
-
-
-# This should probably be a subclass of ReadOnly, in order to avoid
-# duplicating the read function
-#class KeaH5RW(object):
-#
-#    def __init__(fid):
-#    def read(bands, window):
-#    def write(bands, window):
