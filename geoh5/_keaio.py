@@ -2,16 +2,17 @@
 
 from affine import Affine
 import h5py
-from dtypes import NUMPY2KEADTYPE
-from dtypes import KEA2NUMPYDTYPE
-from dtypes import GDAL2KEADTYPE
-from dtypes import KEA2GDALDTYPE
 
 from rasterio.crs import from_string
 from rasterio.crs import to_string
 import osr
 import collections
 import numpy
+
+from geoh5.dtypes import NUMPY2KEADTYPE
+from geoh5.dtypes import KEA2NUMPYDTYPE
+from geoh5.dtypes import GDAL2KEADTYPE
+from geoh5.dtypes import KEA2GDALDTYPE
 
 
 class KeaImageRead(object):
@@ -157,7 +158,7 @@ class KeaImageRead(object):
         for band in self.band_groups:
             bnd_grp = self.band_groups[band]
             val = bnd_grp['DATATYPE'][0]
-            dtype[band] = val
+            dtype[band] = KEA2NUMPYDTYPE[val]
         return dtypes
 
     @property
@@ -268,18 +269,44 @@ class KeaImageReadWrite(KeaImageRead):
         """
         self._fid.flush()
 
+    def set_description(self, band, description):
+        """
+        """
+        # TODO write either fixed length or variable length strings
+        dset = self.band_groups[band]['DESCRIPTION']
+        dset[0] = description
+        self._description[band] = layer_type
+
+    def set_band_metadata(self, band, metadata):
+        """
+        """
+
+    def set_layer_type(self, band, layer_type=0):
+        """
+        """
+        dset = self.band_groups[band]['LAYER_TYPE']
+        dset[0] = layer_type
+        self._layer_type[band] = layer_type
+
+    def set_layer_useage(self, band, layer_useage=0):
+        """
+        """
+        dset = self.band_groups[band]['LAYER_USEAGE']
+        dset[0] = layer_useage
+        self._layer_useage[band] = layer_useage
+
     def write(self, bands, data, window=None):
         """
         """
         # do we have several bands to write
         if isinstance(bands, collections.Sequence):
-            if not set(bands).issubset(self._band_datasets.keys())
+            if not set(bands).issubset(self._band_datasets.keys()):
                 msg = "1 or more bands does not exist in the output file."
                 raise TypeError(msg)
 
             if data.ndim != 3:
                 msg = "Data has {} dimensions and should be 3."
-                msg TypeError(msg.format(data.ndim))
+                raise TypeError(msg.format(data.ndim))
 
             nb = data.shape[0]
             if nb != len(bands):
@@ -297,7 +324,7 @@ class KeaImageReadWrite(KeaImageRead):
                 dset = self._band_datasets[band]
                 dset[idx] = data[i]
         else:
-            if not set([bands]).issubset(self._band_datasets.keys())
+            if not set([bands]).issubset(self._band_datasets.keys()):
                 msg = "Band {} does not exist in the output file."
                 raise TypeError(msg.format(bands))
 

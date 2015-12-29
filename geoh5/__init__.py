@@ -1,17 +1,18 @@
 #!/usr/bin/env python
 
+import collections
 from affine import Affine
 import h5py
-from dtypes import NUMPY2KEADTYPE
-from dtypes import KEA2NUMPYDTYPE
-from dtypes import GDAL2KEADTYPE
-from dtypes import KEA2GDALDTYPE
-
 from rasterio.crs import from_string
 from rasterio.crs import to_string
 import osr
-import collections
 import numpy
+
+from geoh5.dtypes import NUMPY2KEADTYPE
+from geoh5.dtypes import KEA2NUMPYDTYPE
+from geoh5.dtypes import GDAL2KEADTYPE
+from geoh5.dtypes import KEA2GDALDTYPE
+from geoh5._keaio import KeaImageRead, KeaImageReadWrite
 
 
 IMAGE_VERSION = "1.2"
@@ -31,7 +32,7 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
     elif mode == 'r+':
         fid = h5py.File(path, mode)
         ds = KeaImageReadWrite(fid)
-    elif mode =='w':
+    elif mode == 'w':
         # Check we have all the necessary creation options
         if (width is None) or (height is None):
             msg = "Error. Both width and height must be specified."
@@ -77,10 +78,10 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
     ds._read_kea()
 
     return ds
-        
+
 
 def create_kea_image(fid, width, height, count, transform, crs, no_data,
-                     dtype, chunksize, blocksize, compression, band_names):
+                     dtype, chunks, blocksize, compression, band_names):
     """
     Initialises the KEA format layout
     """
@@ -103,7 +104,6 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
     crs_wkt = sr.ExportToWkt()
 
     # create band level groups
-    band_groups = {}
     for gname in band_group_names:
         fid.create_group(gname)
         fid[gname].create_group('METADATA')
@@ -112,7 +112,7 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
         fid[gname].create_group('OVERVIEWS')
 
         # dataset for our data and associated attributes
-        fid[gname].create_dataset('DATA', shape=shape, dtype=dtype,
+        fid[gname].create_dataset('DATA', shape=(height, width), dtype=dtype,
                                   compression=compression, chunks=chunks,
                                   fillvalue=no_data)
 
