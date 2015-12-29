@@ -103,27 +103,13 @@ class KeaImageRead(object):
         return self._transform
 
     def _read_transform(self):
-        transform = [self.header['TL'][0],
-                     self.header['RES'][0],
-                     self.header['ROT'][0],
-                     self.header['TL'][1],
-                     self.header['ROT'][1],
-                     self.header['RES'][1]]
+        transform = [self._header['TL'][0],
+                     self._header['RES'][0],
+                     self._header['ROT'][0],
+                     self._header['TL'][1],
+                     self._header['ROT'][1],
+                     self._header['RES'][1]]
         return Affine.from_gdal(*transform)
-
-    @transform.setter
-    def transform(self, header):
-        transform = [header['TL'][0],
-                     header['RES'][0],
-                     header['ROT'][0],
-                     header['TL'][1],
-                     header['ROT'][1],
-                     header['RES'][1]]
-        self._transform =  Affine.from_gdal(*transform)
-
-    @property
-    def band_groups(self):
-        return self._band_groups
 
     def _read_band_groups(self):
         gname_fmt = 'BAND{}'
@@ -132,10 +118,6 @@ class KeaImageRead(object):
             group = gname_fmt.format(band)
             band_groups[band] = self._fid[group]
         return band_groups
-
-    @property
-    def band_datasets(self):
-        return self._band_datasets
 
     def _read_band_datasets(self):
         bname_fmt = 'BAND{}/DATA'
@@ -155,10 +137,10 @@ class KeaImageRead(object):
 
     def _read_dtypes(self):
         dtypes = {}
-        for band in self.band_groups:
-            bnd_grp = self.band_groups[band]
+        for band in self._band_groups:
+            bnd_grp = self._band_groups[band]
             val = bnd_grp['DATATYPE'][0]
-            dtype[band] = KEA2NUMPYDTYPE[val]
+            dtypes[band] = KEA2NUMPYDTYPE[val]
         return dtypes
 
     @property
@@ -167,8 +149,8 @@ class KeaImageRead(object):
 
     def _read_no_data(self):
         no_data = {}
-        for band in self.band_groups:
-            bnd_grp = self.band_groups[band]
+        for band in self._band_groups:
+            bnd_grp = self._band_groups[band]
             val = bnd_grp['NO_DATA_VAL'][0]
             no_data[band] = val
         return no_data
@@ -179,8 +161,8 @@ class KeaImageRead(object):
 
     def _read_chunks(self):
         chunks = {}
-        for band in self.band_datasets:
-            chunks[band] = self.band_datasets[band].chunks
+        for band in self._band_datasets:
+            chunks[band] = self._band_datasets[band].chunks
         return chunks
 
     @property
@@ -189,8 +171,9 @@ class KeaImageRead(object):
 
     def _read_metadata(self):
         metadata = {}
-        for key in self._fid['METADATA']:
-            metadata[key] = self.fid[key][:]
+        md = self._fid['METADATA']
+        for key in md:
+            metadata[key] = md[key][:]
         return metadata
 
     @property
@@ -199,8 +182,8 @@ class KeaImageRead(object):
 
     def _read_description(self):
         desc = {}
-        for band in self.band_groups:
-            bnd_grp = self.band_groups[band]
+        for band in self._band_groups:
+            bnd_grp = self._band_groups[band]
             val = bnd_grp['DESCRIPTION'][0]
             desc[band] = val
         return desc
@@ -211,8 +194,8 @@ class KeaImageRead(object):
 
     def _read_layer_useage(self):
         layer_useage = {}
-        for band in self.band_groups:
-            bnd_grp = self.band_groups[band]
+        for band in self._band_groups:
+            bnd_grp = self._band_groups[band]
             val = bnd_grp['LAYER_USAGE'][0]
             layer_useage[band] = val
         return layer_useage
@@ -223,8 +206,8 @@ class KeaImageRead(object):
 
     def _read_layer_type(self):
         layer_type = {}
-        for band in self.band_groups:
-            bnd_grp = self.band_groups[band]
+        for band in self._band_groups:
+            bnd_grp = self._band_groups[band]
             val = bnd_grp['LAYER_TYPE'][0]
             layer_type[band] = val
         return layer_type
@@ -273,7 +256,7 @@ class KeaImageReadWrite(KeaImageRead):
         """
         """
         # TODO write either fixed length or variable length strings
-        dset = self.band_groups[band]['DESCRIPTION']
+        dset = self._band_groups[band]['DESCRIPTION']
         dset[0] = description
         self._description[band] = layer_type
 
@@ -284,14 +267,14 @@ class KeaImageReadWrite(KeaImageRead):
     def set_layer_type(self, band, layer_type=0):
         """
         """
-        dset = self.band_groups[band]['LAYER_TYPE']
+        dset = self._band_groups[band]['LAYER_TYPE']
         dset[0] = layer_type
         self._layer_type[band] = layer_type
 
     def set_layer_useage(self, band, layer_useage=0):
         """
         """
-        dset = self.band_groups[band]['LAYER_USEAGE']
+        dset = self._band_groups[band]['LAYER_USEAGE']
         dset[0] = layer_useage
         self._layer_useage[band] = layer_useage
 
