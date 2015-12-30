@@ -8,11 +8,11 @@ from rasterio.crs import to_string
 import osr
 import numpy
 
-from geoh5.dtypes import NUMPY2KEADTYPE
-from geoh5.dtypes import KEA2NUMPYDTYPE
-from geoh5.dtypes import GDAL2KEADTYPE
-from geoh5.dtypes import KEA2GDALDTYPE
-from geoh5._keaio import KeaImageRead, KeaImageReadWrite
+from geoh5.kea.dtypes import NUMPY2KEADTYPE
+from geoh5.kea.dtypes import KEA2NUMPYDTYPE
+from geoh5.kea.dtypes import GDAL2KEADTYPE
+from geoh5.kea.dtypes import KEA2GDALDTYPE
+from geoh5.kea._keaio import KeaImageRead, KeaImageReadWrite
 
 
 IMAGE_VERSION = "1.2"
