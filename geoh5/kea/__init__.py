@@ -12,6 +12,7 @@ from geoh5.kea.dtypes import NUMPY2KEADTYPE
 from geoh5.kea.dtypes import KEA2NUMPYDTYPE
 from geoh5.kea.dtypes import GDAL2KEADTYPE
 from geoh5.kea.dtypes import KEA2GDALDTYPE
+from geoh5.kea.dtypes import fixed_length
 from geoh5.kea._keaio import KeaImageRead, KeaImageReadWrite
 
 
@@ -23,7 +24,7 @@ GENERATOR = "h5py"
 
 def open(path, mode='r', width=None, height=None, count=None, transform=None,
          crs=None, no_data=None, dtype=None, chunks=(256, 256),
-         blocksize=256, compression=1, band_names=None):
+         blocksize=256, compression=1, band_names=None, fixed=False):
 
     # should we pass to different read write classes based on the mode?
     if mode == 'r':
@@ -70,7 +71,7 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
 
         fid = h5py.File(path, mode)
         create_kea_image(fid, width, height, count, transform, crs, no_data,
-                         dtype, chunks, blocksize, compression, band_names)
+                         dtype, chunks, blocksize, compression, band_names, fixed)
 
         ds = KeaImageReadWrite(fid)
 
@@ -81,7 +82,8 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
 
 
 def create_kea_image(fid, width, height, count, transform, crs, no_data,
-                     dtype, chunks, blocksize, compression, band_names):
+                     dtype, chunks, blocksize, compression, band_names,
+                     fixed):
     """
     Initialises the KEA format layout
     """
@@ -108,21 +110,33 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
 
     # create band level groups
     for gname in band_group_names:
-        fid.create_group(gname)
-        fid[gname].create_group('METADATA')
+        grp = fid.create_group(gname)
+        md = grp.create_group('METADATA')
 
         # TODO need example data in order to flesh the overviews section
-        fid[gname].create_group('OVERVIEWS')
+        oview = grp.create_group('OVERVIEWS')
 
         # dataset for our data and associated attributes
-        fid[gname].create_dataset('DATA', shape=dims, dtype=dtype,
+        dset = grp.create_dataset('DATA', shape=dims, dtype=dtype,
                                   compression=compression, chunks=chunks,
                                   fillvalue=no_data)
 
         # CLASS 'IMAGE', is a HDF recognised attribute
-        fid[gname]['DATA'].attrs['CLASS'] = 'IMAGE'
-        fid[gname]['DATA'].attrs['IMAGE_VERSION'] = IMAGE_VERSION
-        fid[gname]['DATA'].attrs['BLOCK_SIZE'] = blocksize
+        if fixed:
+            sid = h5py.h5s.create(h5py.h5s.SCALAR)
+            tid = fixed_length('IMAGE')
+            attr = h5py.h5a.create(dset.id, 'CLASS', tid, sid)
+            attr.write(numpy.array('IMAGE'))
+            sid = h5py.h5s.create(h5py.h5s.SCALAR)
+            tid = fixed_length(IMAGE_VERSION)
+            attr = h5py.h5a.create(dset.id, 'IMAGE_VERSION', tid, sid)
+            attr.write(numpy.array(IMAGE_VERSION))
+        else:
+            dset.attrs['CLASS'] = 'IMAGE'
+            dset.attrs['IMAGE_VERSION'] = IMAGE_VERSION
+
+        # image blocksize
+        dset.attrs['BLOCK_SIZE'] = blocksize
 
         # KEA has defined their own numerical datatype mapping
         fid[gname].create_dataset('DATATYPE', shape=(1,),
@@ -130,28 +144,32 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
 
         # descriptors of the dataset
         # TODO what info can be populated here???
-        fid[gname].create_dataset('DESCRIPTION', shape=(1,), data='')
+        desc = ''
+        if fixed:
+            sid = h5py.h5s.create(h5py.h5s.SCALAR)
+            tid = fixed_length(desc)
+            dset = h5py.h5d.create(grp.id, 'DESCRIPTION', tid, sid)
+            dset.write(h5py.h5s.ALL, h5py.h5s.ALL, numpy.array(desc))
+        else:
+            grp.create_dataset('DESCRIPTION', shape=(1,), data=desc)
 
         # we'll use a default, but all the user to overide later
-        fid[gname].create_dataset('LAYER_TYPE', shape=(1,), data=0)
-        fid[gname].create_dataset('LAYER_USAGE', shape=(1,), data=0)
+        grp.create_dataset('LAYER_TYPE', shape=(1,), data=0)
+        grp.create_dataset('LAYER_USAGE', shape=(1,), data=0)
 
         # TODO unclear on this section
-        fid[gname].create_group('ATT/DATA')
+        grp.create_group('ATT/DATA')
 
         # TODO need an example in order to flesh the neighbours section
-        fid[gname].create_group('ATT/NEIGHBOURS')
+        grp.create_group('ATT/NEIGHBOURS')
 
         # TODO unclear on header chunksize and size
-        fid[gname].create_dataset('ATT/HEADER/CHUNKSIZE', data=0,
-                                          dtype='uint64')
-        fid[gname].create_dataset('ATT/HEADER/SIZE', data=[0,0,0,0,0],
-                                          dtype='uint64')
+        grp.create_dataset('ATT/HEADER/CHUNKSIZE', data=0, dtype='uint64')
+        grp.create_dataset('ATT/HEADER/SIZE', data=[0,0,0,0,0], dtype='uint64')
 
         # do we have no a data value
         if no_data is not None:
-            fid[gname].create_dataset('NO_DATA_VAL', shape=(1,),
-                                      data=no_data)
+            grp.create_dataset('NO_DATA_VAL', shape=(1,), data=no_data)
 
     # Some groups like GCPS will be empty depending on the type of image
     # being written to disk. As will some datasets.
@@ -174,21 +192,49 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
     dname_fmt = 'Band_{}'
     for i, bname in enumerate(band_names):
         dname = dname_fmt.format(i + 1)
-        met.create_dataset(dname, shape=(1,), data=bname)
+        if fixed:
+            sid = h5py.h5s.create(h5py.h5s.SCALAR)
+            tid = fixed_length(bname)
+            dset = h5py.h5d.create(met.id, dname, tid, sid)
+            dset.write(h5py.h5s.ALL, h5py.h5s.ALL, numpy.array(bname))
+        else:
+            met.create_dataset(dname, shape=(1,), data=bname)
 
     # necessary image collection info
     hdr = fid.create_group('HEADER')
 
     # header datasets
-    hdr.create_dataset('WKT', shape=(1,), data=crs_wkt)
     hdr.create_dataset('SIZE', data=dims, dtype='uint64')
-    hdr.create_dataset('VERSION', shape=(1,), data=VERSION)
     hdr.create_dataset('RES', data=res, dtype='float64')
     hdr.create_dataset('TL', data=ul, dtype='float64')
     hdr.create_dataset('ROT', data=rot, dtype='float64')
     hdr.create_dataset('NUMBANDS', shape=(1,), data=count, dtype='uint16')
-    hdr.create_dataset('FILETYPE', shape=(1,), data=FILETYPE)
-    hdr.create_dataset('GENERATOR', shape=(1,), data=GENERATOR)
+    if fixed:
+        wkt = bytes(crs_wkt)
+        sid = h5py.h5s.create(h5py.h5s.SCALAR)
+        tid = fixed_length(crs_wkt)
+        dset = h5py.h5d.create(hdr.id, 'WKT', tid, sid)
+        dset.write(h5py.h5s.ALL, h5py.h5s.ALL, numpy.array(wkt))
+
+        sid = h5py.h5s.create(h5py.h5s.SCALAR)
+        tid = fixed_length(VERSION)
+        dset = h5py.h5d.create(hdr.id, 'VERSION', tid, sid)
+        dset.write(h5py.h5s.ALL, h5py.h5s.ALL, numpy.array(VERSION))
+
+        sid = h5py.h5s.create(h5py.h5s.SCALAR)
+        tid = fixed_length(FILETYPE)
+        dset = h5py.h5d.create(hdr.id, 'FILETYPE', tid, sid)
+        dset.write(h5py.h5s.ALL, h5py.h5s.ALL, numpy.array(FILETYPE))
+
+        sid = h5py.h5s.create(h5py.h5s.SCALAR)
+        tid = fixed_length(GENERATOR)
+        dset = h5py.h5d.create(hdr.id, 'GENERATOR', tid, sid)
+        dset.write(h5py.h5s.ALL, h5py.h5s.ALL, numpy.array(GENERATOR))
+    else:
+        hdr.create_dataset('WKT', shape=(1,), data=crs_wkt)
+        hdr.create_dataset('VERSION', shape=(1,), data=VERSION)
+        hdr.create_dataset('FILETYPE', shape=(1,), data=FILETYPE)
+        hdr.create_dataset('GENERATOR', shape=(1,), data=GENERATOR)
 
     # flush any cached items
     fid.flush()

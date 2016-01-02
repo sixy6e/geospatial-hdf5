@@ -31,7 +31,7 @@ KEA2GDALDTYPE = {v: k for k, v in GDAL2KEADTYPE.items()}
 # parallel hdf doesn't support variable length types...yet
 # see https://www.hdfgroup.org/hdf5-quest.html#pvl
 # non-parallel is fine
-def fixed(val):
+def fixed_length(val):
     typeid = h5py.h5t.TypeID.copy(h5py.h5t.C_S1)
     typeid.set_size(len(val)+1)
     typeid.set_strpad(h5py.h5t.STR_NULLTERM)
