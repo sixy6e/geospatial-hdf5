@@ -27,6 +27,102 @@ STRFMT = "S{length}"
 def open(path, mode='r', width=None, height=None, count=None, transform=None,
          crs=None, no_data=None, dtype=None, chunks=(256, 256),
          blocksize=256, compression=1, band_names=None, parallel=False):
+    """
+    Opens a filelike object for a KEA image formatted HDF5 file.
+
+    :param path:
+        A string containing a full file path name to either create,
+        modify or read a KEA image formatted HDF5 file.
+
+    :param mode:
+        A string containing the desired I/O mode.
+        
+        * `r`: Readonly.
+        * `w`: Write. If file exists it will be overwritten.
+        * `r+`: Read/Write.
+
+    :param width:
+        An integer representin the `x dimension` of the image dataset.
+        Only used when `mode=w'.
+
+    :param height:
+        An integer representing the `y dimension` of the image dataset.
+        Only used when `mode=w'.
+
+    :param count:
+        An integer representing the number of raster bands to be created.
+        Only used when `mode=w'.
+
+    :param transform:
+        An `affine` representing the affine transformation of the image.
+        Only used when `mode=w'.
+
+    :param crs:
+        A `rasterio` styled Proj4 dictionary containing a valid
+        Co-ordinate Reference System.
+        Only used when `mode=w'.
+
+    :param no_data:
+        An integer or floating point value representing the no data or
+        fillvalue of the image datasets.
+        Only used when `mode=w'.
+
+    :param dtype:
+        A string containing a `NumPy` datatype.
+        Only used when `mode=w'.
+        Valid types are:
+
+        * int8
+        * int16
+        * int32
+        * int64
+        * uint8
+        * uint16
+        * uint32
+        * uint64
+        * float32
+        * float64
+
+    :param chunks:
+        A `tuple` containing the desired chunksize for each 2D
+        chunk within a given raster band.
+        Defaults to (256, 256).
+        Only used when `mode=w'.
+
+    :param blocksize:
+        An integer representing the desired blocksize.
+        Defaults to 256.
+        Only used when `mode=w'.
+
+    :param compression:
+        An integer in the range (0, 9), with 0 being low compression
+        and 9 being high compression using the `gzip` filter.
+        Default is 1. Will be set to `None` when `parallel` is set
+        to True.
+        Only used when `mode=w'.
+
+    :param band_names:
+        A list containing the raster band names for each raster
+        band dataset.
+        If `None`, then the raster band names will default to:
+
+        * Band 1
+        * Band 2
+        * Band n
+
+    :param parallel:
+        A boolean indicating whether the file is to be written in
+        parallel mode using `MPI`. `compression` will be set to
+        `None` when `parallel` is set to `True`.
+        Default is `False`.
+        Only used when `mode=w'.
+
+    :notes:
+        Parallel HDF5 doesn't support variable length types...yet                      
+        see https://www.hdfgroup.org/hdf5-quest.html#pvl
+        
+        Parallel HDF5 also doesn't support compression.
+    """
 
     # should we pass to different read write classes based on the mode?
     if mode == 'r':
@@ -73,6 +169,7 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
 
         if parallel:
             fid = h5py.File(path, mode, driver='mpio', comm=MPI.COMM_WORLD)
+            compression = None
         else:
             fid = h5py.File(path, mode)
         create_kea_image(fid, width, height, count, transform, crs, no_data,
@@ -91,9 +188,93 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
                      dtype, chunks, blocksize, compression, band_names,
                      parallel):
     """
-    Initialises the KEA format layout
-    """
+    Initialises the KEA image format layout.
 
+    :param fid:
+        The opened `h5py` dataset.  Referred to as a `file id`.
+
+    :param width:
+        An integer representin the `x dimension` of the image dataset.
+        Only used when `mode=w'.
+
+    :param height:
+        An integer representing the `y dimension` of the image dataset.
+        Only used when `mode=w'.
+
+    :param count:
+        An integer representing the number of raster bands to be created.
+        Only used when `mode=w'.
+
+    :param transform:
+        An `affine` representing the affine transformation of the image.
+        Only used when `mode=w'.
+
+    :param crs:
+        A `rasterio` styled Proj4 dictionary containing a valid
+        Co-ordinate Reference System.
+        Only used when `mode=w'.
+
+    :param no_data:
+        An integer or floating point value representing the no data or
+        fillvalue of the image datasets.
+        Only used when `mode=w'.
+
+    :param dtype:
+        A string containing a `NumPy` datatype.
+        Only used when `mode=w'.
+        Valid types are:
+
+        * int8
+        * int16
+        * int32
+        * int64
+        * uint8
+        * uint16
+        * uint32
+        * uint64
+        * float32
+        * float64
+
+    :param chunks:
+        A `tuple` containing the desired chunksize for each 2D
+        chunk within a given raster band.
+        Defaults to (256, 256).
+        Only used when `mode=w'.
+
+    :param blocksize:
+        An integer representing the desired blocksize.
+        Defaults to 256.
+        Only used when `mode=w'.
+
+    :param compression:
+        An integer in the range (0, 9), with 0 being low compression
+        and 9 being high compression using the `gzip` filter.
+        Default is 1. Will be set to `None` when `parallel` is set
+        to True.
+        Only used when `mode=w'.
+
+    :param band_names:
+        A list containing the raster band names for each raster
+        band dataset.
+        If `None`, then the raster band names will default to:
+
+        * Band 1
+        * Band 2
+        * Band n
+
+    :param parallel:
+        A boolean indicating whether the file is to be written in
+        parallel mode using `MPI`. `compression` will be set to
+        `None` when `parallel` is set to `True`.
+        Default is `False`.
+        Only used when `mode=w'.
+
+    :notes:
+        Parallel HDF5 doesn't support variable length types...yet                      
+        see https://www.hdfgroup.org/hdf5-quest.html#pvl
+        
+        Parallel HDF5 also doesn't support compression.
+    """
 
     # group names for each band
     band_group_names = ['BAND{}'.format(i+1) for i in range(count)]
