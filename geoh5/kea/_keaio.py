@@ -272,26 +272,31 @@ class KeaImageReadWrite(KeaImageRead):
         self._closed = True
         self._fid.close()
 
-    def set_description(self, band, description):
+    def write_description(self, band, description, delete=True:
         """
         """
         # TODO write either fixed length or variable length strings
-        dset = self._band_groups[band]['DESCRIPTION']
-        dset[0] = description
-        self._description[band] = layer_type
+        if delete:
+            del self._band_groups[band]['DESCRIPTION']
+            grp = self._band_groups[band]
+            grp.create_dataset('DESCRIPTION', shape=(1,) data=description)
+        else:
+            dset = self._band_groups[band]['DESCRIPTION']
+            dset[0] = description
+        self._description[band] = description
 
-    def set_band_metadata(self, band, metadata):
+    def write_band_metadata(self, band, metadata):
         """
         """
 
-    def set_layer_type(self, band, layer_type=0):
+    def write_layer_type(self, band, layer_type=0):
         """
         """
         dset = self._band_groups[band]['LAYER_TYPE']
         dset[0] = layer_type
         self._layer_type[band] = layer_type
 
-    def set_layer_useage(self, band, layer_useage=0):
+    def write_layer_useage(self, band, layer_useage=0):
         """
         """
         dset = self._band_groups[band]['LAYER_USEAGE']
