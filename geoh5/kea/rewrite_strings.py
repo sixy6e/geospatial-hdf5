@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 from geoh5 import kea
 
 
@@ -57,3 +58,14 @@ def rewrite_strings(filename):
             md.create_dataset(key, shape=dims, data=data)
 
         ds.flush()
+
+
+if __name__ == '__main__':
+    desc = "Re-writes the fixed length string datasets to variable length."
+    hlp = 'The filename to a KEA image formatted HDF5 file.'
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument('--filename', required=True, help=hlp)
+
+    args = parser.parse_args()
+
+    rewrite_strings(args.filename)
