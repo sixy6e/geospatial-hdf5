@@ -16,6 +16,11 @@ from geoh5.kea.dtypes import KEA2GDALDTYPE
 
 
 class KeaImageRead(object):
+
+    """
+    The base class for the KEA image format.
+    Sets up the `Read` interface.
+    """
     
     def __init__(self, fid):
         self._fid = fid
@@ -47,6 +52,7 @@ class KeaImageRead(object):
         # do we kick it off???
         # self._read_kea()
 
+
     def _read_kea(self):
         self._header = self._read_header()
         self._width = self._header['SIZE'][0]
@@ -66,15 +72,22 @@ class KeaImageRead(object):
         self._layer_useage = self._read_layer_useage()
         self._layer_type = self._read_layer_type()
 
+
     def __enter__(self):
         return self
+
 
     def __exit__(self):
         self.close()
 
+
     def close(self):
+        """
+        Closes the HDF5 file.
+        """
         self._closed = True
         self._fid.close()
+
 
     def _read_header(self):
         _hdr = self._fid['HEADER']
@@ -83,29 +96,36 @@ class KeaImageRead(object):
             hdr[key] = _hdr[key][:]
         return hdr
 
+
     @property
     def closed(self):
         return self._closed
+
 
     @property
     def count(self):
         return self._count
 
+
     @property
     def width(self):
         return self._width
+
 
     @property
     def height(self):
         return self._height
 
+
     @property
     def crs_wkt(self):
         return self._crs_wkt
 
+
     @property
     def crs(self):
         return self._crs
+
 
     def _convert_wkt(self):
         sr = osr.SpatialReference()
@@ -113,9 +133,11 @@ class KeaImageRead(object):
         crs = from_string(sr.ExportToProj4())
         return crs
 
+
     @property
     def transform(self):
         return self._transform
+
 
     def _read_transform(self):
         transform = [self._header['TL'][0],
@@ -126,6 +148,7 @@ class KeaImageRead(object):
                      self._header['RES'][1]]
         return Affine.from_gdal(*transform)
 
+
     def _read_band_groups(self):
         gname_fmt = 'BAND{}'
         band_groups = {}
@@ -133,6 +156,7 @@ class KeaImageRead(object):
             group = gname_fmt.format(band)
             band_groups[band] = self._fid[group]
         return band_groups
+
 
     def _read_band_datasets(self):
         bname_fmt = 'BAND{}/DATA'
@@ -142,13 +166,16 @@ class KeaImageRead(object):
             band_dsets[band] = self._fid[dset]
         return band_dsets
 
+
     @property
     def dtypes(self):
         return self._dtypes
 
+
     @property
     def dtype(self):
         return self._dtype
+
 
     def _read_dtypes(self):
         dtypes = {}
@@ -158,9 +185,11 @@ class KeaImageRead(object):
             dtypes[band] = KEA2NUMPYDTYPE[val]
         return dtypes
 
+
     @property
     def no_data(self):
         return self._no_data
+
 
     def _read_no_data(self):
         no_data = {}
@@ -170,9 +199,11 @@ class KeaImageRead(object):
             no_data[band] = val
         return no_data
 
+
     @property
     def chunks(self):
         return self._chunks
+
 
     def _read_chunks(self):
         chunks = {}
@@ -180,9 +211,11 @@ class KeaImageRead(object):
             chunks[band] = self._band_datasets[band].chunks
         return chunks
 
+
     @property
     def metadata(self):
         return self._metadata
+
 
     def _read_metadata(self):
         metadata = {}
@@ -191,9 +224,11 @@ class KeaImageRead(object):
             metadata[key] = md[key][:]
         return metadata
 
+
     @property
     def description(self):
         return self._description
+
 
     def _read_description(self):
         desc = {}
@@ -203,9 +238,11 @@ class KeaImageRead(object):
             desc[band] = val
         return desc
 
+
     @property
     def layer_useage(self):
         return self._layer_useage
+
 
     def _read_layer_useage(self):
         layer_useage = {}
@@ -215,9 +252,11 @@ class KeaImageRead(object):
             layer_useage[band] = val
         return layer_useage
 
+
     @property
     def layer_type(self):
         return self._layer_type
+
 
     def _read_layer_type(self):
         layer_type = {}
@@ -227,8 +266,25 @@ class KeaImageRead(object):
             layer_type[band] = val
         return layer_type
 
+
     def read(self, bands, window=None):
         """
+        Reads the image data into a `NumPy` array.
+
+        :param bands:
+            An integer of list of integers representing the
+            raster bands that will be read from.
+            The length of bands must match the `count`
+            dimension of `data`, i.e. (count, height, width).
+        
+        :param window:
+            A `tuple` containing ((ystart, ystop), (xstart, xstop))
+            indices for reading from a specific location within the
+            (height, width) 2D image.
+
+        :return:
+            A 2D or 3D `NumPy` array depending on whether `bands`
+            is a `list` or single integer.
         """
         # do we have several bands to read
         if isinstance(bands, collections.Sequence):
@@ -262,18 +318,42 @@ class KeaImageRead(object):
 
 class KeaImageReadWrite(KeaImageRead):
 
+    """
+    A subclass of `KeaImageRead`.
+    Sets up the `Write` interface.
+    """
+
     def flush(self):
         """
+        Flushes the HDF5 caches.
         """
         self._fid.flush()
 
+
     def close(self):
+        """
+        Closes the HDF5 file.
+        """
         self.flush()
         self._closed = True
         self._fid.close()
 
+
     def write_description(self, band, description, delete=True:
         """
+        Writes the description for a given raster band.
+
+        :param band:
+            An integer representing the band number for which to
+            write the description to.
+
+        :param description:
+            A string containing the description to be written
+            to disk.
+
+        :param delete:
+            If set to `True` (default), then the original
+            description will be deleted before being re-created.
         """
         # TODO write either fixed length or variable length strings
         if delete:
@@ -285,26 +365,63 @@ class KeaImageReadWrite(KeaImageRead):
             dset[0] = description
         self._description[band] = description
 
+
     def write_band_metadata(self, band, metadata):
         """
+        Does nothing yet.
         """
+
 
     def write_layer_type(self, band, layer_type=0):
         """
+        Writes the layer type for a given raster band.
+
+        :param band:
+            An integer representing the band number for which to
+            write the description to.
+
+        :param layer_type:
+            An integer of the value 0 or 1. Default is 0.
         """
         dset = self._band_groups[band]['LAYER_TYPE']
         dset[0] = layer_type
         self._layer_type[band] = layer_type
 
+
     def write_layer_useage(self, band, layer_useage=0):
         """
+        Writes the layer useage for a given raster band.
+
+        :param band:
+            An integer representing the band number for which to
+            write the description to.
+
+        :param layer_useage:
+            An integer of the value 0 or 1. Default is 0.
         """
         dset = self._band_groups[band]['LAYER_USEAGE']
         dset[0] = layer_useage
         self._layer_useage[band] = layer_useage
 
+
     def write(self, bands, data, window=None):
         """
+        Writes the image data to disk.
+
+        :param bands:
+            An integer of list of integers representing the
+            raster bands that will be written to.
+            The length of bands must match the `count`
+            dimension of `data`, i.e. (count, height, width).
+        
+        :param data:
+            A 2D or 3D `NumPy` array containing the data to be
+            written to disk.
+
+        :param window:
+            A `tuple` containing ((ystart, ystop), (xstart, xstop))
+            indices for writing to a specific location within the
+            (height, width) 2D image.
         """
         # do we have several bands to write
         if isinstance(bands, collections.Sequence):
