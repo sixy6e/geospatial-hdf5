@@ -20,6 +20,7 @@ class KeaImageRead(object):
     def __init__(self, fid):
         self._fid = fid
         self._header = None
+        self._closed = False
         
         # image dimensions
         self._width = None
@@ -65,12 +66,26 @@ class KeaImageRead(object):
         self._layer_useage = self._read_layer_useage()
         self._layer_type = self._read_layer_type()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self):
+        self.close()
+
+    def close(self):
+        self._closed = True
+        self._fid.close()
+
     def _read_header(self):
         _hdr = self._fid['HEADER']
         hdr = {}
         for key in _hdr:
             hdr[key] = _hdr[key][:]
         return hdr
+
+    @property
+    def closed(self):
+        return self._closed
 
     @property
     def count(self):
@@ -251,6 +266,11 @@ class KeaImageReadWrite(KeaImageRead):
         """
         """
         self._fid.flush()
+
+    def close(self):
+        self.flush()
+        self._closed = True
+        self._fid.close()
 
     def set_description(self, band, description):
         """
