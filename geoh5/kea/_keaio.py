@@ -9,6 +9,7 @@ import osr
 import collections
 import numpy
 
+from geoh5 import kea
 from geoh5.kea.dtypes import NUMPY2KEADTYPE
 from geoh5.kea.dtypes import KEA2NUMPYDTYPE
 from geoh5.kea.dtypes import GDAL2KEADTYPE
@@ -462,3 +463,99 @@ class KeaImageReadWrite(KeaImageRead):
                 idx = numpy.s_[ys:ye, xs:xe]
                 dset = self._band_datasets[band]
                 dset[idx] = data
+
+
+    def add_image_band(self, band_name=None, description=None, dtype='uint8',
+                       chunks=(256, 256), blocksize=256, compression=1,
+                       no_data=None):
+        """
+        Adds a new image band to the KEA file.
+
+        :param band_name:
+            If `None` (default), then band name will be `Band {count+1}`
+            where `count` is the current nuber of image bands.
+
+        :param description:
+            A string containing the image band description. If `None`
+            (default) then the description will be an empty string.
+
+        :param dtype:
+            A valid `NumPy` style datatype string.
+            Defaults to 'uint8'.
+
+        :param chunks:
+            A `tuple` containing the desired chunksize for each 2D
+            chunk within a given raster band.
+            Defaults to (256, 256).
+
+        :param blocksize:
+            An integer representing the desired blocksize.
+            Defaults to 256.
+
+        :param compression:
+            An integer in the range (0, 9), with 0 being low compression
+            and 9 being high compression using the `gzip` filter.
+            Default is 1.
+        """
+
+        band_num = self.count + 1
+        
+        if description is None:
+            description = ''
+
+        if band_name is None:
+            band_name = 'Band {}'.format(band_num)
+
+        dims = (self.height, self.width)
+        kea_dtype = NUMPY2KEADTYPE[dtype]
+        gname = 'Band{}'.format(band_num)
+
+        grp = self._fid.create_group(gname)
+        grp.create_group('METADATA')
+        grp.create_group('OVERVIEWS')
+
+        dset = grp.create_dataset('DATA', shape=dims, dtype=self.dtype,
+                                  compression=compression, chunks=chunks,
+                                  fillvalue=self.no_data)
+
+        # CLASS 'IMAGE', is a HDF recognised attribute
+        dset.attrs['CLASS'] = 'IMAGE'
+        dset.attrs['IMAGE_VERSION'] = kea.IMAGE_VERSION
+
+        # image blocksize
+        dset.attrs['BLOCK_SIZE'] = blocksize
+
+        # KEA has defined their own numerical datatype mapping
+        self._fid[gname].create_dataset('DATATYPE', shape=(1,),
+                                        data=kea_dtype, dtype='uint16')
+
+        grp.create_description('DESCRIPTION', shape=(1,), data=description)
+
+        # we'll use a default, but allow the user to overide later
+        grp.create_dataset('LAYER_TYPE', shape=(1,), data=0)
+        grp.create_dataset('LAYER_USAGE', shape=(1,), data=0)
+
+        # TODO unclear on this section
+        grp.create_group('ATT/DATA')
+
+        # TODO need an example in order to flesh the neighbours section
+        grp.create_group('ATT/NEIGHBOURS')
+
+        # TODO unclear on header chunksize and size
+        grp.create_dataset('ATT/HEADER/CHUNKSIZE', data=0, dtype='uint64')
+        grp.create_dataset('ATT/HEADER/SIZE', data=[0,0,0,0,0], dtype='uint64')
+
+        # do we have no a data value
+        if no_data is not None:
+            grp.create_dataset('NO_DATA_VAL', shape=(1,), data=no_data)
+
+        dname_fmt = 'Band_{}'.format(band_num)
+        md = self._fid['METADATA']
+        md.create_dataset(dname_fmt, shape=(1,), data=band_name)
+
+        hdr = self._fid['HEADER']
+        hdr['NUMBANDS'][0] = band_num
+
+        self.flush()
+
+        self._read_kea()
