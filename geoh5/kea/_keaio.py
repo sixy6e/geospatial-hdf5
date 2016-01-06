@@ -496,6 +496,10 @@ class KeaImageReadWrite(KeaImageRead):
             An integer in the range (0, 9), with 0 being low compression
             and 9 being high compression using the `gzip` filter.
             Default is 1.
+
+        :param no_data:
+            An integer or floating point value representing the no data or
+            fillvalue of the image datasets.
         """
 
         band_num = self.count + 1
@@ -516,7 +520,7 @@ class KeaImageReadWrite(KeaImageRead):
 
         dset = grp.create_dataset('DATA', shape=dims, dtype=self.dtype,
                                   compression=compression, chunks=chunks,
-                                  fillvalue=self.no_data)
+                                  fillvalue=no_data)
 
         # CLASS 'IMAGE', is a HDF recognised attribute
         dset.attrs['CLASS'] = 'IMAGE'
