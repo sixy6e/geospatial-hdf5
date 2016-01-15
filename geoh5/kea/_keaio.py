@@ -10,10 +10,9 @@ import collections
 import numpy
 
 from geoh5 import kea
-from geoh5.kea.dtypes import NUMPY2KEADTYPE
-from geoh5.kea.dtypes import KEA2NUMPYDTYPE
-from geoh5.kea.dtypes import GDAL2KEADTYPE
-from geoh5.kea.dtypes import KEA2GDALDTYPE
+from geoh5.kea import common as kc
+from geoh5.kea.common import LayerType
+from geoh5.kea.common import BandColorInterp
 
 
 class KeaImageRead(object):
@@ -64,8 +63,7 @@ class KeaImageRead(object):
         self._transform = self._read_transform()
         self._band_groups = self._read_band_groups()
         self._band_datasets = self._read_band_datasets()
-        self._dtypes = self._read_dtypes()
-        self._dtype = self.dtypes[1] # should be all the same datatype
+        sefl._dtype, self._dtypes = self._read_dtypes()
         self._no_data = self._read_no_data()
         self._chunks = self._read_chunks()
         self._metadata = self._read_metadata()
@@ -175,6 +173,9 @@ class KeaImageRead(object):
 
     @property
     def dtype(self):
+        """
+        The highest level datatype of each raster band.
+        """
         return self._dtype
 
 
@@ -183,8 +184,15 @@ class KeaImageRead(object):
         for band in self._band_groups:
             bnd_grp = self._band_groups[band]
             val = bnd_grp['DATATYPE'][0]
-            dtypes[band] = KEA2NUMPYDTYPE[val]
-        return dtypes
+            dtypes[band] = kc.KeaDataType(val).name
+        dtype = dtypes[1]
+
+        # get the highest level datatype
+        # this is used as the base datatype for reading all bands as well as
+        # the base datatype for appending a new band.
+        for band in dtypes:
+            dtype = numpy.promote_types(dtype, dtypes[band])
+        return dtype, dtypes
 
 
     @property
@@ -193,6 +201,7 @@ class KeaImageRead(object):
 
 
     def _read_no_data(self):
+        # TODO check if we have a no_data value
         no_data = {}
         for band in self._band_groups:
             bnd_grp = self._band_groups[band]
@@ -250,7 +259,7 @@ class KeaImageRead(object):
         for band in self._band_groups:
             bnd_grp = self._band_groups[band]
             val = bnd_grp['LAYER_USAGE'][0]
-            layer_useage[band] = val
+            layer_useage[band] = BandColourInterp(val)
         return layer_useage
 
 
@@ -264,7 +273,7 @@ class KeaImageRead(object):
         for band in self._band_groups:
             bnd_grp = self._band_groups[band]
             val = bnd_grp['LAYER_TYPE'][0]
-            layer_type[band] = val
+            layer_type[band] = LayerType(val)
         return layer_type
 
 
@@ -340,7 +349,7 @@ class KeaImageReadWrite(KeaImageRead):
         self._fid.close()
 
 
-    def write_description(self, band, description, delete=True:
+    def write_description(self, band, description, delete=True):
         """
         Writes the description for a given raster band.
 
@@ -360,7 +369,7 @@ class KeaImageReadWrite(KeaImageRead):
         if delete:
             del self._band_groups[band]['DESCRIPTION']
             grp = self._band_groups[band]
-            grp.create_dataset('DESCRIPTION', shape=(1,) data=description)
+            grp.create_dataset('DESCRIPTION', shape=(1,), data=description)
         else:
             dset = self._band_groups[band]['DESCRIPTION']
             dset[0] = description
@@ -373,7 +382,7 @@ class KeaImageReadWrite(KeaImageRead):
         """
 
 
-    def write_layer_type(self, band, layer_type=0):
+    def write_layer_type(self, band, layer_type=LayerType.continuous):
         """
         Writes the layer type for a given raster band.
 
@@ -382,26 +391,29 @@ class KeaImageReadWrite(KeaImageRead):
             write the description to.
 
         :param layer_type:
-            An integer of the value 0 or 1. Default is 0.
+            See class `LayerType`. Default is `LayerType.continuous`.
         """
         dset = self._band_groups[band]['LAYER_TYPE']
-        dset[0] = layer_type
+        dset[0] = layer_type.value
         self._layer_type[band] = layer_type
 
 
-    def write_layer_useage(self, band, layer_useage=0):
+    def write_layer_useage(self, band, layer_useage=BandColorInterp.greyindex):
         """
         Writes the layer useage for a given raster band.
+        Refers to the colour index mapping to be used for
+        displaying the raster band.
 
         :param band:
             An integer representing the band number for which to
             write the description to.
 
         :param layer_useage:
-            An integer of the value 0 or 1. Default is 0.
+            See class `BandColorInterp`.
+            Default is `BandColorInterp.greyindex`.
         """
         dset = self._band_groups[band]['LAYER_USEAGE']
-        dset[0] = layer_useage
+        dset[0] = layer_useage.value
         self._layer_useage[band] = layer_useage
 
 
@@ -511,7 +523,7 @@ class KeaImageReadWrite(KeaImageRead):
             band_name = 'Band {}'.format(band_num)
 
         dims = (self.height, self.width)
-        kea_dtype = NUMPY2KEADTYPE[dtype]
+        kea_dtype = kc.KeaDataType[dtype].value
         gname = 'Band{}'.format(band_num)
 
         grp = self._fid.create_group(gname)
@@ -524,7 +536,7 @@ class KeaImageReadWrite(KeaImageRead):
 
         # CLASS 'IMAGE', is a HDF recognised attribute
         dset.attrs['CLASS'] = 'IMAGE'
-        dset.attrs['IMAGE_VERSION'] = kea.IMAGE_VERSION
+        dset.attrs['IMAGE_VERSION'] = kc.IMAGE_VERSION
 
         # image blocksize
         dset.attrs['BLOCK_SIZE'] = blocksize

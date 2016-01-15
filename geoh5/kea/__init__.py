@@ -7,21 +7,15 @@ from rasterio.crs import from_string
 from rasterio.crs import to_string
 import osr
 import numpy
-from mpi4py import MPI
 
-from geoh5.kea.dtypes import NUMPY2KEADTYPE
-from geoh5.kea.dtypes import KEA2NUMPYDTYPE
-from geoh5.kea.dtypes import GDAL2KEADTYPE
-from geoh5.kea.dtypes import KEA2GDALDTYPE
-from geoh5.kea.dtypes import fixed_length
+try:
+    from mpi4py import MPI
+except ImportError:
+    _MPI = False
+    _MSG = "MPI not available."
+
+from geoh5.kea import common as kc
 from geoh5.kea._keaio import KeaImageRead, KeaImageReadWrite
-
-
-IMAGE_VERSION = "1.2"
-VERSION = "1.1"
-FILETYPE = "KEA"
-GENERATOR = "h5py"
-STRFMT = "S{length}"
 
 
 def open(path, mode='r', width=None, height=None, count=None, transform=None,
@@ -168,6 +162,8 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
             transform = Affine.from_gdal(*transform)
 
         if parallel:
+            if not _MPI:
+                raise ImportError(_MSG)
             fid = h5py.File(path, mode, driver='mpio', comm=MPI.COMM_WORLD)
             compression = None
         else:
@@ -285,7 +281,7 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
     rot = (transform[1], transform[3])
 
     # gdal or numpy number dtype value
-    kea_dtype = NUMPY2KEADTYPE[dtype]
+    kea_dtype = kc.NUMPY2KEADTYPE[dtype]
 
     # convert the proj4 dict to wkt
     sr = osr.SpatialReference()
@@ -310,7 +306,7 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
 
         # CLASS 'IMAGE', is a HDF recognised attribute
         dset.attrs['CLASS'] = 'IMAGE'
-        dset.attrs['IMAGE_VERSION'] = IMAGE_VERSION
+        dset.attrs['IMAGE_VERSION'] = kc.IMAGE_VERSION
 
         # image blocksize
         dset.attrs['BLOCK_SIZE'] = blocksize
@@ -390,22 +386,22 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
         stype = STRFMT.format(length=len(wkt))
         hdr.create_dataset('WKT', shape=(1,), data=wkt, dtype=stype)
 
-        stype = STRFMT.format(length=len(VERSION))
-        hdr.create_dataset('VERSION', shape=(1,), data=numpy.string_(VERSION),
-                           dtype=stype)
+        stype = STRFMT.format(length=len(kc.VERSION))
+        hdr.create_dataset('VERSION', shape=(1,),
+                           data=numpy.string_(kc.VERSION), dtype=stype)
 
-        stype = STRFMT.format(length=len(FILETYPE))
+        stype = STRFMT.format(length=len(kc.FILETYPE))
         hdr.create_dataset('FILETYPE', shape=(1,),
-                           data=numpy.string_(FILETYPE), dtype=stype)
+                           data=numpy.string_(kc.FILETYPE), dtype=stype)
 
-        stype = STRFMT.format(length=len(GENERATOR))
+        stype = STRFMT.format(length=len(kc.GENERATOR))
         hdr.create_dataset('GENERATOR', shape=(1,),
-                           data=numpy.string_(GENERATOR), dtype=stype)
+                           data=numpy.string_(kc.GENERATOR), dtype=stype)
     else:
         hdr.create_dataset('WKT', shape=(1,), data=crs_wkt)
-        hdr.create_dataset('VERSION', shape=(1,), data=VERSION)
-        hdr.create_dataset('FILETYPE', shape=(1,), data=FILETYPE)
-        hdr.create_dataset('GENERATOR', shape=(1,), data=GENERATOR)
+        hdr.create_dataset('VERSION', shape=(1,), data=kc.VERSION)
+        hdr.create_dataset('FILETYPE', shape=(1,), data=kc.FILETYPE)
+        hdr.create_dataset('GENERATOR', shape=(1,), data=kc.GENERATOR)
 
     # flush any cached items
     fid.flush()
