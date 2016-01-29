@@ -147,11 +147,6 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
             msg = "The chunks must not exceed the width or height."
             raise ValueError(msg)
 
-        # we'll use rasterio's proj4 dict mapping
-        if not isinstance(crs, dict):
-            msg = "The crs is not a valid proj4 dict style mapping."
-            raise ValueError(msg)
-
         # we'll follow rasterio in using an affine
         if not isinstance(transform, Affine):
             msg = "The transform is not an Affine instance."
@@ -276,7 +271,7 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
     rot = (transform[1], transform[3])
 
     # gdal or numpy number dtype value
-    kea_dtype = kc.NUMPY2KEADTYPE[dtype]
+    kea_dtype = kc.KeaDataType[dtype].value
 
     # image dimensions
     dims = (height, width)

@@ -6,10 +6,9 @@ import h5py
 import collections
 import numpy
 
-from geoh5 import kea
 from geoh5.kea import common as kc
 from geoh5.kea.common import LayerType
-from geoh5.kea.common import BandColorInterp
+from geoh5.kea.common import BandColourInterp
 
 
 class KeaImageRead(object):
@@ -58,7 +57,7 @@ class KeaImageRead(object):
         self._transform = self._read_transform()
         self._band_groups = self._read_band_groups()
         self._band_datasets = self._read_band_datasets()
-        sefl._dtype, self._dtypes = self._read_dtypes()
+        self._dtype, self._dtypes = self._read_dtypes()
         self._no_data = self._read_no_data()
         self._chunks = self._read_chunks()
         self._metadata = self._read_metadata()
@@ -71,7 +70,8 @@ class KeaImageRead(object):
         return self
 
 
-    def __exit__(self):
+    # http://docs.quantifiedcode.com/python-anti-patterns/correctness/exit_must_accept_three_arguments.html
+    def __exit__(self, exception_type, exception_value, traceback):
         self.close()
 
 
@@ -175,7 +175,7 @@ class KeaImageRead(object):
         # the base datatype for appending a new band.
         for band in dtypes:
             dtype = numpy.promote_types(dtype, dtypes[band])
-        return dtype, dtypes
+        return dtype.name, dtypes
 
 
     @property
@@ -381,7 +381,7 @@ class KeaImageReadWrite(KeaImageRead):
         self._layer_type[band] = layer_type
 
 
-    def write_layer_useage(self, band, layer_useage=BandColorInterp.greyindex):
+    def write_layer_useage(self, band, layer_useage=BandColourInterp.greyindex):
         """
         Writes the layer useage for a given raster band.
         Refers to the colour index mapping to be used for
@@ -392,8 +392,8 @@ class KeaImageReadWrite(KeaImageRead):
             write the description to.
 
         :param layer_useage:
-            See class `BandColorInterp`.
-            Default is `BandColorInterp.greyindex`.
+            See class `BandColourInterp`.
+            Default is `BandColourInterp.greyindex`.
         """
         dset = self._band_groups[band]['LAYER_USEAGE']
         dset[0] = layer_useage.value
