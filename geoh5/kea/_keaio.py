@@ -400,9 +400,13 @@ class KeaImageReadWrite(KeaImageRead):
         self._layer_useage[band] = layer_useage
 
 
-    def write(self, bands, data, window=None):
+    def write(self, data, bands, window=None):
         """
         Writes the image data to disk.
+
+        :param data:
+            A 2D or 3D `NumPy` array containing the data to be
+            written to disk.
 
         :param bands:
             An integer of list of integers representing the
@@ -410,10 +414,6 @@ class KeaImageReadWrite(KeaImageRead):
             The length of bands must match the `count`
             dimension of `data`, i.e. (count, height, width).
         
-        :param data:
-            A 2D or 3D `NumPy` array containing the data to be
-            written to disk.
-
         :param window:
             A `tuple` containing ((ystart, ystop), (xstart, xstop))
             indices for writing to a specific location within the
