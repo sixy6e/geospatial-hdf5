@@ -260,15 +260,17 @@ class KeaImageRead(object):
         return layer_type
 
 
-    def read(self, bands, window=None):
+    def read(self, bands=None, window=None):
         """
         Reads the image data into a `NumPy` array.
 
         :param bands:
-            An integer of list of integers representing the
+            An integer or list of integers representing the
             raster bands that will be read from.
             The length of bands must match the `count`
             dimension of `data`, i.e. (count, height, width).
+            If `bands` is None, the default behaviour is to read
+            all bands.
         
         :param window:
             A `tuple` containing ((ystart, ystop), (xstart, xstop))
@@ -279,6 +281,10 @@ class KeaImageRead(object):
             A 2D or 3D `NumPy` array depending on whether `bands`
             is a `list` or single integer.
         """
+        # default behaviour to read all bands
+        if bands is None:
+            bands = range(1, self.count + 1)
+
         # do we have several bands to read
         if isinstance(bands, collections.Sequence):
             nb = len(bands)
