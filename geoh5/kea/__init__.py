@@ -3,9 +3,6 @@
 import collections
 from affine import Affine
 import h5py
-from rasterio.crs import from_string
-from rasterio.crs import to_string
-import osr
 import numpy
 
 try:
@@ -52,8 +49,7 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
         Only used when `mode=w'.
 
     :param crs:
-        A `rasterio` styled Proj4 dictionary containing a valid
-        Co-ordinate Reference System.
+        A WKT string representation of a Co-ordinate Reference System.
         Only used when `mode=w'.
 
     :param no_data:
@@ -206,8 +202,7 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
         Only used when `mode=w'.
 
     :param crs:
-        A `rasterio` styled Proj4 dictionary containing a valid
-        Co-ordinate Reference System.
+        A WKT string representation of a Co-ordinate Reference System.
         Only used when `mode=w'.
 
     :param no_data:
@@ -282,11 +277,6 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
 
     # gdal or numpy number dtype value
     kea_dtype = kc.NUMPY2KEADTYPE[dtype]
-
-    # convert the proj4 dict to wkt
-    sr = osr.SpatialReference()
-    sr.ImportFromProj4(to_string(crs))
-    crs_wkt = sr.ExportToWkt()
 
     # image dimensions
     dims = (height, width)
@@ -382,7 +372,7 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
     hdr.create_dataset('ROT', data=rot, dtype='float64')
     hdr.create_dataset('NUMBANDS', shape=(1,), data=count, dtype='uint16')
     if parallel:
-        wkt = numpy.string_(bytes(crs_wkt))
+        wkt = numpy.string_(bytes(crs))
         stype = STRFMT.format(length=len(wkt))
         hdr.create_dataset('WKT', shape=(1,), data=wkt, dtype=stype)
 
@@ -398,7 +388,7 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
         hdr.create_dataset('GENERATOR', shape=(1,),
                            data=numpy.string_(kc.GENERATOR), dtype=stype)
     else:
-        hdr.create_dataset('WKT', shape=(1,), data=crs_wkt)
+        hdr.create_dataset('WKT', shape=(1,), data=crs)
         hdr.create_dataset('VERSION', shape=(1,), data=kc.VERSION)
         hdr.create_dataset('FILETYPE', shape=(1,), data=kc.FILETYPE)
         hdr.create_dataset('GENERATOR', shape=(1,), data=kc.GENERATOR)

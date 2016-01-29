@@ -3,9 +3,6 @@
 from affine import Affine
 import h5py
 
-from rasterio.crs import from_string
-from rasterio.crs import to_string
-import osr
 import collections
 import numpy
 
@@ -33,7 +30,6 @@ class KeaImageRead(object):
         self._count = None
 
         # spatial info
-        self._crs_wkt = None
         self._crs = None
         self._transform = None
 
@@ -58,8 +54,7 @@ class KeaImageRead(object):
         self._width = self._header['SIZE'][0]
         self._height = self._header['SIZE'][1]
         self._count = self._header['NUMBANDS'][0]
-        self._crs_wkt = self._header['WKT'][0]
-        self._crs = self._convert_wkt()
+        self._crs = self._header['WKT'][0]
         self._transform = self._read_transform()
         self._band_groups = self._read_band_groups()
         self._band_datasets = self._read_band_datasets()
@@ -117,20 +112,8 @@ class KeaImageRead(object):
 
 
     @property
-    def crs_wkt(self):
-        return self._crs_wkt
-
-
-    @property
     def crs(self):
         return self._crs
-
-
-    def _convert_wkt(self):
-        sr = osr.SpatialReference()
-        result = sr.ImportFromWkt(self.crs_wkt)
-        crs = from_string(sr.ExportToProj4())
-        return crs
 
 
     @property
