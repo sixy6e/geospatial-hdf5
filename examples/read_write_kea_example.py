@@ -19,11 +19,11 @@ def main():
               'blocksize': 25}
     
     # write to disk
-    with kea.open('file1.kea', 'w', **kwargs) as src:
+    with kea.open('file-1.kea', 'w', **kwargs) as src:
         src.write(data, bands=range(1, count+1))
 
     # re-open as a new file object
-    with kea.open('file1.kea', 'r') as src:
+    with kea.open('file-1.kea', 'r') as src:
         # Read the first band
         src.read(1)
     
@@ -42,7 +42,7 @@ def main():
                   'dtype': src.dtype}
     
         # create a new output file
-        with kea.open('file2.kea', 'w', **kwargs) as out_src:
+        with kea.open('file-2.kea', 'w', **kwargs) as out_src:
             # Write the first band of data into band 3 on disk, etc..
             out_src.write(data, bands=[3,2,1])
 

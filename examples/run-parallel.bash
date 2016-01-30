@@ -7,11 +7,10 @@ mpiexec -n 1 python parallel_kea_example.py
 # into datasets need to be converted from fixed to variable, otherwise
 # kealib will crash
 PYFILE=../geoh5/kea/rewrite_strings.py
-FILE=file-3.kea
+FILE=file-parallel.kea
 
 python $PYFILE --filename $FILE
 
 echo "4 CPU's"
 mpiexec -n 4 python parallel_kea_example.py
-PYFILE=../geoh5/kea/rewrite_strings.py
-FILE=file-3.kea
+python $PYFILE --filename $FILE
