@@ -11,6 +11,11 @@ Requirements
 * affine
 
 
+Installing
+----------
+[sudo] python setup.py install
+
+
 KEA format
 ----------
 
