@@ -28,7 +28,7 @@ with kea.open('file1.kea', 'w', **kwargs) as src:
 ```
 
 
-Kea read/write example
+KEA read/write example
 ----------------------
 
 ```python
@@ -56,3 +56,11 @@ with kea.open('file1.kea', 'r') as src:
         # Write the first band of data into band 3 on disk, etc..
         out_src.write(data, bands=[3,2,1])
 ```
+
+
+Parallel (MPI) interface
+------------------------
+
+If HDF5 & h5py have been built with the parallel option, then files can be
+created with the `MPIO` driver and you workflow can be run using MPI.
+See examples/parallel_kea_example.py for an example of an MPI workflow.
