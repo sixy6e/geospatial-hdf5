@@ -46,7 +46,7 @@ def rewrite_strings(filename):
 
         # band descriptions
         for i in range(1, ds.count + 1):
-            description = ds.description[i]
+            description = bytes(ds.description[i])
             ds.write_description(i, description)
 
         ds.flush()
