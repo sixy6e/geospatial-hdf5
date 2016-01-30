@@ -4,6 +4,19 @@ A geospatial interface for h5py.
 Support for the KEA image format, + others to come.
 
 
+Requirements
+------------
+* NumPy
+* h5py 
+* affine
+
+
+KEA format
+----------
+
+See http://kealib.org/ for more information
+
+
 KEA write example
 ------------
 
