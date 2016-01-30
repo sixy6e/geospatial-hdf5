@@ -77,3 +77,5 @@ Parallel (MPI) interface
 If HDF5 & h5py have been built with the parallel option, then files can be
 created with the `MPIO` driver and you workflow can be run using MPI.
 See examples/parallel_kea_example.py for an example of an MPI workflow.
+See http://docs.h5py.org/en/latest/mpi.html for information on building
+parallel HDF5 and h5py.
