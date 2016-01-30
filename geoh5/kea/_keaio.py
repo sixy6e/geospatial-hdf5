@@ -184,11 +184,14 @@ class KeaImageRead(object):
 
 
     def _read_no_data(self):
-        # TODO check if we have a no_data value
+        item = 'NO_DATA_VAL'
         no_data = {}
         for band in self._band_groups:
             bnd_grp = self._band_groups[band]
-            val = bnd_grp['NO_DATA_VAL'][0]
+            if item in bnd_grp:
+                val = bnd_grp['NO_DATA_VAL'][0]
+            else:
+                val = None
             no_data[band] = val
         return no_data
 
