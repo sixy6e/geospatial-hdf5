@@ -5,6 +5,7 @@ from affine import Affine
 import h5py
 import numpy
 
+_MPI = True
 try:
     from mpi4py import MPI
 except ImportError:
@@ -141,7 +142,10 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
             rot = (0, 0)
             res = (1, -1)
             transform = Affine.from_gdal(*[0.0, 1.0, 0.0, 0.0, 0.0, -1.0])
-            crs = ""
+            if parallel:
+                crs = " "
+            else:
+                crs = ""
 
         if (chunks[0] > height) or (chunks[1] > width):
             msg = "The chunks must not exceed the width or height."
@@ -351,7 +355,7 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
     for i, bname in enumerate(band_names):
         dname = dname_fmt.format(i + 1)
         if parallel:
-            stype = STRFMT.format(length=len(bname))
+            stype = kc.STRFMT.format(length=len(bname))
             met.create_dataset(dname, shape=(1,), data=numpy.string_(bname),
                                dtype=stype)
         else:
@@ -361,25 +365,25 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
     hdr = fid.create_group('HEADER')
 
     # header datasets
-    hdr.create_dataset('SIZE', data=dims, dtype='uint64')
+    hdr.create_dataset('SIZE', data=dims[::-1], dtype='uint64')
     hdr.create_dataset('RES', data=res, dtype='float64')
     hdr.create_dataset('TL', data=ul, dtype='float64')
     hdr.create_dataset('ROT', data=rot, dtype='float64')
     hdr.create_dataset('NUMBANDS', shape=(1,), data=count, dtype='uint16')
     if parallel:
         wkt = numpy.string_(bytes(crs))
-        stype = STRFMT.format(length=len(wkt))
+        stype = kc.STRFMT.format(length=len(wkt))
         hdr.create_dataset('WKT', shape=(1,), data=wkt, dtype=stype)
 
-        stype = STRFMT.format(length=len(kc.VERSION))
+        stype = kc.STRFMT.format(length=len(kc.VERSION))
         hdr.create_dataset('VERSION', shape=(1,),
                            data=numpy.string_(kc.VERSION), dtype=stype)
 
-        stype = STRFMT.format(length=len(kc.FILETYPE))
+        stype = kc.STRFMT.format(length=len(kc.FILETYPE))
         hdr.create_dataset('FILETYPE', shape=(1,),
                            data=numpy.string_(kc.FILETYPE), dtype=stype)
 
-        stype = STRFMT.format(length=len(kc.GENERATOR))
+        stype = kc.STRFMT.format(length=len(kc.GENERATOR))
         hdr.create_dataset('GENERATOR', shape=(1,),
                            data=numpy.string_(kc.GENERATOR), dtype=stype)
     else:

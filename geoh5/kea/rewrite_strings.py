@@ -26,6 +26,8 @@ def rewrite_strings(filename):
 
         wkt = bytes(hdr['WKT'][0])
         del hdr['WKT']
+        if wkt == ' ':
+            wkt = ''
         hdr.create_dataset('WKT', shape=dims, data=wkt)
 
         version = bytes(hdr['VERSION'][0])

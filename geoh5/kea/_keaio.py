@@ -299,8 +299,7 @@ class KeaImageRead(object):
                 ysize = ye - ys
                 xsize = xe - xs
                 idx = numpy.s_[ys:ye, xs:xe]
-                data = numpy.zeros((nb, ysize, xsize),
-                                   dtype=self.dtypes[0])
+                data = numpy.zeros((nb, ysize, xsize), dtype=self.dtype)
                 for i, band in enumerate(bands):
                     self._band_datasets[band].read_direct(data[i], idx)
         else:
@@ -448,8 +447,9 @@ class KeaImageReadWrite(KeaImageRead):
                 ys, ye = window[0]
                 xs, xe = window[1]
                 idx = numpy.s_[ys:ye, xs:xe]
-                dset = self._band_datasets[band]
-                dset[idx] = data[i]
+                for i, band in enumerate(bands):
+                    dset = self._band_datasets[band]
+                    dset[idx] = data[i]
         else:
             if not set([bands]).issubset(self._band_datasets.keys()):
                 msg = "Band {} does not exist in the output file."
@@ -462,7 +462,7 @@ class KeaImageReadWrite(KeaImageRead):
                 ys, ye = window[0]
                 xs, xe = window[1]
                 idx = numpy.s_[ys:ye, xs:xe]
-                dset = self._band_datasets[band]
+                dset = self._band_datasets[bands]
                 dset[idx] = data
 
 
