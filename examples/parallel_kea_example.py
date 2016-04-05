@@ -6,6 +6,7 @@ from os.path import exists as pexists
 from mpi4py import MPI
 import numpy
 from eotools.tiling import generate_tiles
+from eotools.tiling import scatter
 from geoh5 import kea
 
 def main():
@@ -30,10 +31,8 @@ def main():
                                int(chunks[1]), int(chunks[0]), False)
 
         # assign a list of unique tiles to each processor
-        n_tiles = len(tiles)                                                    
-        idx = generate_tiles(n_tiles, 1, n_tiles / n_proc, 1, False)  
-        ri = [chunk for _, chunk in idx][rank]                                  
-        r_tiles = tiles[ri[0]:ri[1]]
+        n_tiles = len(tiles)
+        r_tiles = scatter(tiles, n_proc)[rank]
 
         with kea.open('file-parallel.kea', 'w', **kwargs) as src:
             for tile in r_tiles:
