@@ -17,8 +17,8 @@ from geoh5.kea._keaio import KeaImageRead, KeaImageReadWrite
 
 
 def open(path, mode='r', width=None, height=None, count=None, transform=None,
-         crs=None, no_data=None, dtype=None, chunks=(256, 256),
-         blocksize=256, compression=1, band_names=None, parallel=False):
+         crs=None, no_data=None, dtype=None,  blocksize=256,
+         compression=1, band_names=None, parallel=False):
     """
     Opens a filelike object for a KEA image formatted HDF5 file.
 
@@ -73,12 +73,6 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
         * uint64
         * float32
         * float64
-
-    :param chunks:
-        A `tuple` containing the desired chunksize for each 2D
-        chunk within a given raster band.
-        Defaults to (256, 256).
-        Only used when `mode=w'.
 
     :param blocksize:
         An integer representing the desired blocksize.
@@ -147,8 +141,8 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
             else:
                 crs = ""
 
-        if (chunks[0] > height) or (chunks[1] > width):
-            msg = "The chunks must not exceed the width or height."
+        if (blocksize > height) or (blocksize > width):
+            msg = "The blocksize must not exceed the width or height."
             raise ValueError(msg)
 
         # we'll follow rasterio in using an affine
@@ -164,7 +158,7 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
         else:
             fid = h5py.File(path, mode)
         create_kea_image(fid, width, height, count, transform, crs, no_data,
-                         dtype, chunks, blocksize, compression, band_names,
+                         dtype, blocksize, compression, band_names,
                          parallel)
 
         ds = KeaImageReadWrite(fid)
@@ -176,8 +170,7 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
 
 
 def create_kea_image(fid, width, height, count, transform, crs, no_data,
-                     dtype, chunks, blocksize, compression, band_names,
-                     parallel):
+                     dtype, blocksize, compression, band_names, parallel):
     """
     Initialises the KEA image format layout.
 
@@ -224,12 +217,6 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
         * uint64
         * float32
         * float64
-
-    :param chunks:
-        A `tuple` containing the desired chunksize for each 2D
-        chunk within a given raster band.
-        Defaults to (256, 256).
-        Only used when `mode=w'.
 
     :param blocksize:
         An integer representing the desired blocksize.
@@ -279,6 +266,9 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
 
     # image dimensions
     dims = (height, width)
+
+    # define the square chunks
+    chunks = (blocksize, blocksize)
 
     # create band level groups
     for gname in band_group_names:

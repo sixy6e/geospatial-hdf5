@@ -38,7 +38,7 @@ class KeaImageRead(object):
         # band level info
         self._dtypes = None
         self._no_data = None
-        self._chunks = None
+        self._blocksize = None
         self._metadata = None
         self._description = None
         self._layer_useage = None
@@ -59,7 +59,7 @@ class KeaImageRead(object):
         self._band_datasets = self._read_band_datasets()
         self._dtype, self._dtypes = self._read_dtypes()
         self._no_data = self._read_no_data()
-        self._chunks = self._read_chunks()
+        self._blocksize = self._read_blocksize()
         self._metadata = self._read_metadata()
         self._description = self._read_description()
         self._layer_useage = self._read_layer_useage()
@@ -197,15 +197,15 @@ class KeaImageRead(object):
 
 
     @property
-    def chunks(self):
-        return self._chunks
+    def blocksize(self):
+        return self._blocksize
 
 
-    def _read_chunks(self):
-        chunks = {}
+    def _read_blocksize(self):
+        blocksize = {}
         for band in self._band_datasets:
-            chunks[band] = self._band_datasets[band].chunks
-        return chunks
+            blocksize[band] = self._band_datasets[band].attrs['BLOCK_SIZE']
+        return blocksize
 
 
     @property
@@ -470,8 +470,7 @@ class KeaImageReadWrite(KeaImageRead):
 
 
     def add_image_band(self, band_name=None, description=None, dtype='uint8',
-                       chunks=(256, 256), blocksize=256, compression=1,
-                       no_data=None):
+                       blocksize=256, compression=1, no_data=None):
         """
         Adds a new image band to the KEA file.
 
@@ -486,11 +485,6 @@ class KeaImageReadWrite(KeaImageRead):
         :param dtype:
             A valid `NumPy` style datatype string.
             Defaults to 'uint8'.
-
-        :param chunks:
-            A `tuple` containing the desired chunksize for each 2D
-            chunk within a given raster band.
-            Defaults to (256, 256).
 
         :param blocksize:
             An integer representing the desired blocksize.
@@ -521,6 +515,8 @@ class KeaImageReadWrite(KeaImageRead):
         grp = self._fid.create_group(gname)
         grp.create_group('METADATA')
         grp.create_group('OVERVIEWS')
+
+        chunks = (blocksize, blocksize)
 
         dset = grp.create_dataset('DATA', shape=dims, dtype=self.dtype,
                                   compression=compression, chunks=chunks,
