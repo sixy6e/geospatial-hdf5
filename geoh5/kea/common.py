@@ -46,6 +46,22 @@ class BandColourInterp(Enum):
         ycbcr_crband = 16
 
 
+# raster attribute table field types
+class RatFieldTypes(Enum):
+    BOOL_FIELDS = 0
+    INT_FIELDS = 1
+    FLOAT_FIELDS = 2
+    STRING_FIELDS = 3
+
+
+# raster attribute table data types
+class RatDataTypes(Enum):
+    BOOL = 0
+    INT = 1
+    FLOAT = 2
+    STRING = 3
+
+
 # kea undefined is 0; not sure what the mapping to numpy is
 NUMPY2KEADTYPE = {'int8': 1,
                   'int16': 2,
@@ -77,7 +93,7 @@ LAYERTYPE = namedtuple('LAYERTYPE', ['CONTINUOUS', 'THEMATIC'])(*range(2))
 IMAGE_VERSION = "1.2"
 VERSION = "1.1"
 FILETYPE = "KEA"
-GENERATOR = "h5py"
+GENERATOR = "geoh5"
 STRFMT = "S{length}"
 
 # parallel hdf doesn't support variable length types...yet

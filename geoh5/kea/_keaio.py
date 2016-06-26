@@ -9,6 +9,7 @@ import numpy
 from geoh5.kea import common as kc
 from geoh5.kea.common import LayerType
 from geoh5.kea.common import BandColourInterp
+from geoh5.kea.common import RatFieldTypes
 
 
 class KeaImageRead(object):
@@ -263,6 +264,57 @@ class KeaImageRead(object):
         return layer_type
 
 
+    def _prep_rat(self):
+        rat_lookup = {}
+        rat_columns = {}
+        for band in self._band_groups:
+            bnd_grp = self._band_groups[band]
+            hdr = bnd_grp['ATT/HEADER']
+            data = bnd_grp['ATT/DATA']
+
+            # bool, int, float, string fields
+            rat_info = hdr['SIZE'][:]
+            rat_rows = rat_info[0]
+            rat_fields = rat_info[1:]
+
+            # read the field types
+            rat_data = {}
+            for i, val in enumerate(rat_info[1:]):
+                if i:
+                    fname = RatFieldTypes(val).name
+                    dname = RatDataTypes(val).name
+                    fields = hdr[fname][:]
+
+                    # set column name to link to the dataset and column index
+                    for key in fields:
+                        rat_data[key[0]] = (data[dname], key[1])
+
+            rat_lookup[band] = rat_data
+            rat_columns[band] = rat_data.keys()
+            rat_rows[band] = rat_rows
+
+
+    def read_rat(self, band=1, columns=None, row_start=0, row_end=None):
+        """
+        If retrieve for multiple bands, return a pandas panel???
+        """
+        # TODO: Check band num is valid
+        rat = self._rat_lookup[band]
+        data = {}
+
+        if columns is None:
+            # return all columns
+            for col in rat:
+                dset, idx = rat[col]
+                data[col] = dset[row_start:row_end, idx]
+        else:
+            for col in columns:
+                dset, idx = rat[col]
+                data[col] = dset[row_start:row_end, idx]
+
+        return pandas.DataFrame(data)
+
+
     def read(self, bands=None, window=None):
         """
         Reads the image data into a `NumPy` array.
@@ -371,6 +423,7 @@ class KeaImageReadWrite(KeaImageRead):
         """
         Does nothing yet.
         """
+        raise NotImplementedError
 
 
     def write_layer_type(self, band, layer_type=LayerType.continuous):
