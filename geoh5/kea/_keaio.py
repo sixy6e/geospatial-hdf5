@@ -10,6 +10,7 @@ from geoh5.kea import common as kc
 from geoh5.kea.common import LayerType
 from geoh5.kea.common import BandColourInterp
 from geoh5.kea.common import RatFieldTypes
+from geoh5.kea.common import RatDataTypes
 
 
 class KeaImageRead(object):
@@ -44,6 +45,9 @@ class KeaImageRead(object):
         self._description = None
         self._layer_useage = None
         self._layer_type = None
+        self._rat_column_names = None
+        self._rat_rows = None
+        self._rat_lookup = None
 
         # do we kick it off???
         # self._read_kea()
@@ -264,9 +268,20 @@ class KeaImageRead(object):
         return layer_type
 
 
+   @property
+   def rat_column_names(self):
+       return self._rat_column_names
+
+
+   @proprty
+   def rat_rows(self):
+       return self._rat_rows
+
+
     def _prep_rat(self):
-        rat_lookup = {}
-        rat_columns = {}
+        self._rat_lookup = {}
+        self._rat_column_names = {}
+        self._rat_rows = {}
         for band in self._band_groups:
             bnd_grp = self._band_groups[band]
             hdr = bnd_grp['ATT/HEADER']
@@ -274,7 +289,7 @@ class KeaImageRead(object):
 
             # bool, int, float, string fields
             rat_info = hdr['SIZE'][:]
-            rat_rows = rat_info[0]
+            nrows = rat_info[0]
             rat_fields = rat_info[1:]
 
             # read the field types
@@ -289,9 +304,9 @@ class KeaImageRead(object):
                     for key in fields:
                         rat_data[key[0]] = (data[dname], key[1])
 
-            rat_lookup[band] = rat_data
-            rat_columns[band] = rat_data.keys()
-            rat_rows[band] = rat_rows
+            self._rat_lookup[band] = rat_data
+            self._rat_column_names[band] = rat_data.keys()
+            self._rat_rows[band] = nrows
 
 
     def read_rat(self, band=1, columns=None, row_start=0, row_end=None):
@@ -300,6 +315,7 @@ class KeaImageRead(object):
         """
         # TODO: Check band num is valid
         rat = self._rat_lookup[band]
+        valid_cols = self._rat_columns[band]
         data = {}
 
         if columns is None:
@@ -308,6 +324,11 @@ class KeaImageRead(object):
                 dset, idx = rat[col]
                 data[col] = dset[row_start:row_end, idx]
         else:
+            # check for valid columns
+            if not set(columns).issubset(valid_cols):
+                msg = ("Invalid column name.\n"
+                       "Valid column names are: {}")
+                raise IndexError(msg.format(valid_cols))
             for col in columns:
                 dset, idx = rat[col]
                 data[col] = dset[row_start:row_end, idx]
@@ -596,14 +617,17 @@ class KeaImageReadWrite(KeaImageRead):
         grp.create_dataset('LAYER_TYPE', shape=(1,), data=0)
         grp.create_dataset('LAYER_USAGE', shape=(1,), data=0)
 
-        # TODO unclear on this section
+        # TODO: define a write method for the rat
+        # TODO: BOOL_FIELDS, INT_FIELDS, FLOAT_FIELDS, STRING_FIELDS
         grp.create_group('ATT/DATA')
 
         # TODO need an example in order to flesh the neighbours section
         grp.create_group('ATT/NEIGHBOURS')
 
-        # TODO unclear on header chunksize and size
+        # TODO: option to define the chunksize for the table outputs
         grp.create_dataset('ATT/HEADER/CHUNKSIZE', data=0, dtype='uint64')
+
+        # size is rows then bool, int, float, string columns
         grp.create_dataset('ATT/HEADER/SIZE', data=[0,0,0,0,0], dtype='uint64')
 
         # do we have no a data value
