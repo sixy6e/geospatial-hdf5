@@ -5,6 +5,7 @@ import h5py
 
 import collections
 import numpy
+import pandas
 
 from geoh5.kea import common as kc
 from geoh5.kea.common import LayerType
@@ -69,6 +70,7 @@ class KeaImageRead(object):
         self._description = self._read_description()
         self._layer_useage = self._read_layer_useage()
         self._layer_type = self._read_layer_type()
+        self._prep_rat()
 
 
     def __enter__(self):
@@ -268,14 +270,14 @@ class KeaImageRead(object):
         return layer_type
 
 
-   @property
-   def rat_column_names(self):
-       return self._rat_column_names
+    @property
+    def rat_column_names(self):
+        return self._rat_column_names
 
 
-   @proprty
-   def rat_rows(self):
-       return self._rat_rows
+    @property
+    def rat_rows(self):
+        return self._rat_rows
 
 
     def _prep_rat(self):
@@ -291,21 +293,27 @@ class KeaImageRead(object):
             rat_info = hdr['SIZE'][:]
             nrows = rat_info[0]
             rat_fields = rat_info[1:]
+            names = range(rat_fields.sum())
 
             # read the field types
             rat_data = {}
-            for i, val in enumerate(rat_info[1:]):
-                if i:
-                    fname = RatFieldTypes(val).name
-                    dname = RatDataTypes(val).name
+            for i, val in enumerate(rat_fields):
+                if val > 0:
+                    fname = RatFieldTypes(i).name
+                    dname = RatDataTypes(i).name
                     fields = hdr[fname][:]
 
-                    # set column name to link to the dataset and column index
+                    # set column name to link to the dataset, column index,
+                    # and the final table index
                     for key in fields:
-                        rat_data[key[0]] = (data[dname], key[1])
+                        col_name = key[0]
+                        col_idx = key[1]
+                        tbl_idx = key[-1]
+                        rat_data[col_name] = (data[dname], col_idx, tbl_idx)
+                        names[tbl_idx] = col_name
 
             self._rat_lookup[band] = rat_data
-            self._rat_column_names[band] = rat_data.keys()
+            self._rat_column_names[band] = names
             self._rat_rows[band] = nrows
 
 
@@ -315,25 +323,28 @@ class KeaImageRead(object):
         """
         # TODO: Check band num is valid
         rat = self._rat_lookup[band]
-        valid_cols = self._rat_columns[band]
+        valid_cols = self._rat_column_names[band]
         data = {}
 
         if columns is None:
             # return all columns
             for col in rat:
-                dset, idx = rat[col]
+                dset, idx, tbl_idx = rat[col]
                 data[col] = dset[row_start:row_end, idx]
+                col_names = self._rat_column_names[band]
         else:
             # check for valid columns
             if not set(columns).issubset(valid_cols):
                 msg = ("Invalid column name.\n"
                        "Valid column names are: {}")
                 raise IndexError(msg.format(valid_cols))
+            col_names = []
             for col in columns:
-                dset, idx = rat[col]
+                dset, idx, tbl_idx = rat[col]
                 data[col] = dset[row_start:row_end, idx]
+                col_names.append(self._rat_column_names[band][tbl_idx])
 
-        return pandas.DataFrame(data)
+        return pandas.DataFrame(data, columns=col_names)
 
 
     def read(self, bands=None, window=None):
