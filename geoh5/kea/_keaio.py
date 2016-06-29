@@ -319,9 +319,33 @@ class KeaImageRead(object):
 
     def read_rat(self, band=1, columns=None, row_start=0, row_end=None):
         """
-        If retrieve for multiple bands, return a pandas panel???
+        Read the raster attribute table for a given band.
+
+        :param bands:
+            An integer representing the raster band that the
+            raster attribute table should be read from.
+            Default is the first band, i.e. `1`.
+
+        :param columns:
+            A list of the column names to read. Default is `None`
+            in which case all columns are read.
+
+        :param row_start:
+            An integer indicating the 1st row to start reading
+            from.  Default is 0, the first row (zero based index).
+
+        :param row_end:
+            An integer indicating the last row to read up to.
+            Default is None, in which case all rows are read.
+            The row_end shouldn't exceed the number of rows in
+            the table.
+
+        :return:
+            A `pandas.DataFrame` containing the raster attribute
+            table.
         """
         # TODO: Check band num is valid
+        # If retrieve for multiple bands, return a pandas panel???
         rat = self._rat_lookup[band]
         valid_cols = self._rat_column_names[band]
         data = {}
