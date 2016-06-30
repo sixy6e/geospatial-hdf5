@@ -9,6 +9,8 @@ Requirements
 * NumPy
 * h5py 
 * affine
+* enum34
+* pandas (when working with the raster attribute table)
 
 
 Installing
