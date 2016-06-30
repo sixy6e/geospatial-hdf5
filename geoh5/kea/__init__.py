@@ -18,7 +18,8 @@ from geoh5.kea._keaio import KeaImageRead, KeaImageReadWrite
 
 def open(path, mode='r', width=None, height=None, count=None, transform=None,
          crs=None, no_data=None, dtype=None, chunks=(256, 256),
-         blocksize=256, compression=1, band_names=None, parallel=False):
+         blocksize=256, compression=1, shuffle=False, band_names=None,
+         parallel=False):
     """
     Opens a filelike object for a KEA image formatted HDF5 file.
 
@@ -90,7 +91,14 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
         and 9 being high compression using the `gzip` filter.
         Default is 1. Will be set to `None` when `parallel` is set
         to True.
+        The fast compression `lzf` can be used by setting
+        `compression='lzf'`.
         Only used when `mode=w'.
+
+    :param shuffle:
+        If set to True, then the shuffle filter will be applied
+        prior to compression. Higher compression ratio's can be
+        achieved by applying the shuffle filter. Default is False.
 
     :param band_names:
         A list containing the raster band names for each raster
@@ -164,8 +172,8 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
         else:
             fid = h5py.File(path, mode)
         create_kea_image(fid, width, height, count, transform, crs, no_data,
-                         dtype, chunks, blocksize, compression, band_names,
-                         parallel)
+                         dtype, chunks, blocksize, compression, shuffle,
+                         band_names, parallel)
 
         ds = KeaImageReadWrite(fid)
 
@@ -176,8 +184,8 @@ def open(path, mode='r', width=None, height=None, count=None, transform=None,
 
 
 def create_kea_image(fid, width, height, count, transform, crs, no_data,
-                     dtype, chunks, blocksize, compression, band_names,
-                     parallel):
+                     dtype, chunks, blocksize, compression, shuffle, 
+                     band_names, parallel):
     """
     Initialises the KEA image format layout.
 
@@ -241,7 +249,14 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
         and 9 being high compression using the `gzip` filter.
         Default is 1. Will be set to `None` when `parallel` is set
         to True.
+        The fast compression `lzf` can be used by setting
+        `compression='lzf'`.
         Only used when `mode=w'.
+
+    :param shuffle:
+        If set to True, then the shuffle filter will be applied
+        prior to compression. Higher compression ratio's can be
+        achieved by applying the shuffle filter. Default is False.
 
     :param band_names:
         A list containing the raster band names for each raster
@@ -290,8 +305,8 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
 
         # dataset for our data and associated attributes
         dset = grp.create_dataset('DATA', shape=dims, dtype=dtype,
-                                  compression=compression, chunks=chunks,
-                                  fillvalue=no_data)
+                                  compression=compression, shuffle=shuffle,
+                                  chunks=chunks, fillvalue=no_data)
 
         # CLASS 'IMAGE', is a HDF recognised attribute
         dset.attrs['CLASS'] = 'IMAGE'
@@ -319,13 +334,14 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
         grp.create_dataset('LAYER_TYPE', shape=(1,), data=0)
         grp.create_dataset('LAYER_USAGE', shape=(1,), data=0)
 
-        # TODO unclear on this section
+        # TODO: add attribute table write capability
         grp.create_group('ATT/DATA')
 
         # TODO need an example in order to flesh the neighbours section
         grp.create_group('ATT/NEIGHBOURS')
 
-        # TODO unclear on header chunksize and size
+        # TODO: add attribute table write capability
+        # this'll then make use of the table chunksize and table size
         grp.create_dataset('ATT/HEADER/CHUNKSIZE', data=0, dtype='uint64')
         grp.create_dataset('ATT/HEADER/SIZE', data=[0,0,0,0,0], dtype='uint64')
 

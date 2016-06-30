@@ -583,7 +583,7 @@ class KeaImageReadWrite(KeaImageRead):
 
     def add_image_band(self, band_name=None, description=None, dtype='uint8',
                        chunks=(256, 256), blocksize=256, compression=1,
-                       no_data=None):
+                       shuffle=False, no_data=None):
         """
         Adds a new image band to the KEA file.
 
@@ -611,7 +611,16 @@ class KeaImageReadWrite(KeaImageRead):
         :param compression:
             An integer in the range (0, 9), with 0 being low compression
             and 9 being high compression using the `gzip` filter.
-            Default is 1.
+            Default is 1. Will be set to `None` when `parallel` is set
+            to True.
+            The fast compression `lzf` can be used by setting
+            `compression='lzf'`.
+            Only used when `mode=w'.
+
+        :param shuffle:
+            If set to True, then the shuffle filter will be applied
+            prior to compression. Higher compression ratio's can be
+            achieved by applying the shuffle filter. Default is False.
 
         :param no_data:
             An integer or floating point value representing the no data or
@@ -635,8 +644,8 @@ class KeaImageReadWrite(KeaImageRead):
         grp.create_group('OVERVIEWS')
 
         dset = grp.create_dataset('DATA', shape=dims, dtype=self.dtype,
-                                  compression=compression, chunks=chunks,
-                                  fillvalue=no_data)
+                                  compression=compression, shuffle=shuffle,
+                                  chunks=chunks, fillvalue=no_data)
 
         # CLASS 'IMAGE', is a HDF recognised attribute
         dset.attrs['CLASS'] = 'IMAGE'
