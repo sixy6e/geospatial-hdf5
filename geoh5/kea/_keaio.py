@@ -344,7 +344,10 @@ class KeaImageRead(object):
             A `pandas.DataFrame` containing the raster attribute
             table.
         """
-        # TODO: Check band num is valid
+        if band not in range(1, self.count + 1):
+            msg = "Invalid band number: {}"
+            raise IndexError(msg.format(band))
+
         # If retrieve for multiple bands, return a pandas panel???
         rat = self._rat_lookup[band]
         valid_cols = self._rat_column_names[band]
