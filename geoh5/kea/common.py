@@ -62,6 +62,28 @@ class RatDataTypes(Enum):
     STRING = 3
 
 
+class NumpyRatTypes(Enum):
+    BOOL = 0
+    INT8 = 1
+    INT16 = 1
+    INT32 = 1
+    INT64 = 1
+    UINT8 = 1
+    UINT16 = 1
+    UINT32 = 1
+    UINT64 = 1
+    FLOAT32 = 2
+    FLOAT64 = 2
+    FLOAT = 2
+    OBJECT = 3
+
+
+ConvertRatDataType = {0: 'int64',
+                      1: 'int64',
+                      2: 'float64',
+                      3: 'object'}
+
+
 # kea undefined is 0; not sure what the mapping to numpy is
 NUMPY2KEADTYPE = {'int8': 1,
                   'int16': 2,
