@@ -643,7 +643,7 @@ class KeaImageReadWrite(KeaImageRead):
         grp.create_group('METADATA')
         grp.create_group('OVERVIEWS')
 
-        dset = grp.create_dataset('DATA', shape=dims, dtype=self.dtype,
+        dset = grp.create_dataset('DATA', shape=dims, dtype=dtype,
                                   compression=compression, shuffle=shuffle,
                                   chunks=chunks, fillvalue=no_data)
 
@@ -691,3 +691,67 @@ class KeaImageReadWrite(KeaImageRead):
         self.flush()
 
         self._read_kea()
+
+
+    def write_rat(self, dataframe, band, chunksize=1000, compression=1):
+        """
+        Write a `pandas.DataFrame` as a raster attribute table for a
+        given band.
+
+        :param band:
+
+        :param dataframe:
+        """
+        dtypes = dataframe.dtypes
+        columns = dataframe.columns
+        nrows, ncols = dataframe.shape
+
+        # the column index will determine the global index to write to disk
+        # the order of the column and their datatype will determine
+        # the index to write to disk (index local to datatype)
+        # what to do about useage (column description)???
+
+        # rat header fields (name, local index, usage, global index)
+        # is a composite datatype
+
+        # write each datatype dataset as an expandable along the
+        # column axis???
+
+        datatypes = {key.value: [] for key in RatDataTypes}
+        for col in columns:
+            dtype = dtypes[col].name.upper()
+            dvalue = NumpyRatTypes[dtype].value
+            datatypes[dvalue].append(col)
+
+        bnd_grp = self._band_groups[band]
+        hdr = bnd_grp['ATT/HEADER']
+        data = bnd_grp['ATT/DATA']
+
+        # write the chunksize
+        if nrows < chunksize:
+            chunksize = nrows
+        hdr['CHUNKSIZE'] = chunksize
+
+        # write the rat dimensions
+        rat_size = hdr['SIZE']
+        rat_size[0] = nrows
+        for dtype in datatypes:
+            # account for the nrows value at idx:0
+            rat_size[dtype + 1] = len(datatypes[dtype])
+
+        # create the datasets
+        for dtype in datatypes:
+            cols = datatypes[dtype]
+            ncols_dtype = len(cols)
+            if ncols_dtype == 0:
+                continue
+            out_dtype = ConvertRatDataType[dtype]
+            dims = (nrows, ncols_dtype)
+            dset = blah.create_dataset(dataset_name, shape=dims,
+                                       dtype=out_dtype, chunks=(chunksize, 1),
+                                       compression=compression)
+            for idx, col in enumerate(cols):
+                dset[:, idx] = dataframe[col].values.astype(out_dtype)
+
+        # header fields (name, local index, usage, global index)
+        global_idx = columns.get_loc('Histogram')
