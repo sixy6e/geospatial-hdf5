@@ -12,6 +12,7 @@ from geoh5.kea.common import LayerType
 from geoh5.kea.common import BandColourInterp
 from geoh5.kea.common import RatFieldTypes
 from geoh5.kea.common import RatDataTypes
+from geoh5.kea.common import ConvertRatDataType
 
 
 class KeaImageRead(object):
@@ -664,14 +665,12 @@ class KeaImageReadWrite(KeaImageRead):
         grp.create_dataset('LAYER_TYPE', shape=(1,), data=0)
         grp.create_dataset('LAYER_USAGE', shape=(1,), data=0)
 
-        # TODO: define a write method for the rat
-        # TODO: BOOL_FIELDS, INT_FIELDS, FLOAT_FIELDS, STRING_FIELDS
+        # create the attribute table groups
         grp.create_group('ATT/DATA')
 
         # TODO need an example in order to flesh the neighbours section
         grp.create_group('ATT/NEIGHBOURS')
 
-        # TODO: option to define the chunksize for the table outputs
         grp.create_dataset('ATT/HEADER/CHUNKSIZE', data=0, dtype='uint64')
 
         # size is rows then bool, int, float, string columns
@@ -693,36 +692,44 @@ class KeaImageReadWrite(KeaImageRead):
         self._read_kea()
 
 
-    def write_rat(self, dataframe, band, chunksize=1000, compression=1):
+    def write_rat(self, dataframe, band, usage=None, chunksize=1000,
+                  compression=1):
         """
         Write a `pandas.DataFrame` as a raster attribute table for a
         given band.
 
+        :param dataframe:
+
         :param band:
 
-        :param dataframe:
+        :param usage:
+
+        :param chunksize:
+
+        :param compression:
         """
+        # gather descriptive info of the dataframe
         dtypes = dataframe.dtypes
         columns = dataframe.columns
         nrows, ncols = dataframe.shape
 
-        # the column index will determine the global index to write to disk
-        # the order of the column and their datatype will determine
-        # the index to write to disk (index local to datatype)
-        # what to do about useage (column description)???
+        # create default usage names, or check for correct column names
+        if usage is None:
+            useage = {col: col for col in columns}
+        else:
+            if not all([i in columns for i in usage]):
+                msg = "Column name(s) in usage not found in dataframe.\n{}"
+                raise IndexError(msg.format(usage.keys())
 
-        # rat header fields (name, local index, usage, global index)
-        # is a composite datatype
 
-        # write each datatype dataset as an expandable along the
-        # column axis???
-
+        # what datatypes are we working with
         datatypes = {key.value: [] for key in RatDataTypes}
         for col in columns:
             dtype = dtypes[col].name.upper()
             dvalue = NumpyRatTypes[dtype].value
             datatypes[dvalue].append(col)
 
+        # retrieve the relevant groups for the given band
         bnd_grp = self._band_groups[band]
         hdr = bnd_grp['ATT/HEADER']
         data = bnd_grp['ATT/DATA']
@@ -739,19 +746,39 @@ class KeaImageReadWrite(KeaImageRead):
             # account for the nrows value at idx:0
             rat_size[dtype + 1] = len(datatypes[dtype])
 
+        # header fields (name, local index, usage, global index)
+        vlen = ConvertRatDataType[3]
+        hdr_dtype = numpy.dtype([("NAME", vlen),
+                                 ("INDEX", numpy.uint32),
+                                 ("USAGE", vlen),
+                                 ("COLNUM", numpy.uint32)])
+
         # create the datasets
         for dtype in datatypes:
             cols = datatypes[dtype]
             ncols_dtype = len(cols)
+
+            # do we have any data for this datatype?
             if ncols_dtype == 0:
                 continue
+
+            # setup the dataset for a given datatype
             out_dtype = ConvertRatDataType[dtype]
             dims = (nrows, ncols_dtype)
-            dset = blah.create_dataset(dataset_name, shape=dims,
+            dataset_name = RatDataTypes(dtype).name
+            dset = data.create_dataset(dataset_name, shape=dims,
                                        dtype=out_dtype, chunks=(chunksize, 1),
                                        compression=compression)
+
+            # header fields
+            hdr_data = numpy.zeros((ncols_dtype), dtype=hdr_dtype)
+            hdr_data["NAME"] = cols
+
+            # write the column data and the hdr fields
             for idx, col in enumerate(cols):
                 dset[:, idx] = dataframe[col].values.astype(out_dtype)
+                hdr_data["INDEX"][idx] = idx
+                hdr_data["USAGE"][idx] = usage[col]
+                hdr_data["COLNUM"][idx] = columns.get_loc(col)
 
-        # header fields (name, local index, usage, global index)
-        global_idx = columns.get_loc('Histogram')
+            hdr.create_dataset(RatFieldTypes(dtype).name, data=hdr_data)
