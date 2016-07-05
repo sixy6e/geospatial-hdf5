@@ -81,7 +81,7 @@ class NumpyRatTypes(Enum):
 ConvertRatDataType = {0: 'int64',
                       1: 'int64',
                       2: 'float64',
-                      3: 'object'}
+                      3: h5py.special_dtype(vlen=str)}
 
 
 # kea undefined is 0; not sure what the mapping to numpy is
