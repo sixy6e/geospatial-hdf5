@@ -13,6 +13,7 @@ from geoh5.kea.common import BandColourInterp
 from geoh5.kea.common import RatFieldTypes
 from geoh5.kea.common import RatDataTypes
 from geoh5.kea.common import ConvertRatDataType
+from geoh5.kea.common import NumpyRatTypes
 
 
 class KeaImageRead(object):
@@ -530,7 +531,7 @@ class KeaImageReadWrite(KeaImageRead):
             written to disk.
 
         :param bands:
-            An integer of list of integers representing the
+            An integer or list of integers representing the
             raster bands that will be written to.
             The length of bands must match the `count`
             dimension of `data`, i.e. (count, height, width).
@@ -715,11 +716,11 @@ class KeaImageReadWrite(KeaImageRead):
 
         # create default usage names, or check for correct column names
         if usage is None:
-            useage = {col: col for col in columns}
+            usage = {col: col for col in columns}
         else:
             if not all([i in columns for i in usage]):
                 msg = "Column name(s) in usage not found in dataframe.\n{}"
-                raise IndexError(msg.format(usage.keys())
+                raise IndexError(msg.format(usage.keys()))
 
 
         # what datatypes are we working with
@@ -737,7 +738,7 @@ class KeaImageReadWrite(KeaImageRead):
         # write the chunksize
         if nrows < chunksize:
             chunksize = nrows
-        hdr['CHUNKSIZE'] = chunksize
+        hdr['CHUNKSIZE'][()] = chunksize
 
         # write the rat dimensions
         rat_size = hdr['SIZE']
@@ -782,3 +783,7 @@ class KeaImageReadWrite(KeaImageRead):
                 hdr_data["COLNUM"][idx] = columns.get_loc(col)
 
             hdr.create_dataset(RatFieldTypes(dtype).name, data=hdr_data)
+
+        self.flush()
+
+        self._read_kea()
