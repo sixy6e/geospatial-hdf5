@@ -342,7 +342,7 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
 
         # TODO: add attribute table write capability
         # this'll then make use of the table chunksize and table size
-        grp.create_dataset('ATT/HEADER/CHUNKSIZE', data=0, dtype='uint64')
+        grp.create_dataset('ATT/HEADER/CHUNKSIZE', data=[0], dtype='uint64')
         grp.create_dataset('ATT/HEADER/SIZE', data=[0,0,0,0,0], dtype='uint64')
 
         # do we have no a data value
