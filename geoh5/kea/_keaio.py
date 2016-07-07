@@ -503,7 +503,8 @@ class KeaImageReadWrite(KeaImageRead):
         self._layer_type[band] = layer_type
 
 
-    def write_layer_useage(self, band, layer_useage=BandColourInterp.greyindex):
+    def write_layer_useage(self, band,
+                           layer_useage=BandColourInterp.greyindex):
         """
         Writes the layer useage for a given raster band.
         Refers to the colour index mapping to be used for
@@ -700,14 +701,32 @@ class KeaImageReadWrite(KeaImageRead):
         given band.
 
         :param dataframe:
+            A `pandas.DataFrame` containing the data to write to disk.
+            The index column is currently not written to disk.
 
         :param band:
+            An integer representing the raster band
+            that the attribute table refers to.
 
         :param usage:
+            A `dict` with the `DataFrame` column names as the keys,
+            and a useage description for each column name as the
+            values.
 
         :param chunksize:
+            An integer representing the chunks (number of rows)
+            that will be used when compressing the data.
+            Default is 1000, or total rows if the number of rows
+            is < 1000.
 
         :param compression:
+            An integer in the range (0, 9), with 0 being low compression
+            and 9 being high compression using the `gzip` filter.
+            Default is 1. Will be set to `None` when `parallel` is set
+            to True.
+            The fast compression `lzf` can be used by setting
+            `compression='lzf'`.
+            Only used when `mode=w'.
         """
         # gather descriptive info of the dataframe
         dtypes = dataframe.dtypes
