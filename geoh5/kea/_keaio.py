@@ -629,7 +629,6 @@ class KeaImageReadWrite(KeaImageRead):
             An integer or floating point value representing the no data or
             fillvalue of the image datasets.
         """
-
         band_num = self.count + 1
         
         if description is None:
@@ -673,7 +672,7 @@ class KeaImageReadWrite(KeaImageRead):
         # TODO need an example in order to flesh the neighbours section
         grp.create_group('ATT/NEIGHBOURS')
 
-        grp.create_dataset('ATT/HEADER/CHUNKSIZE', data=0, dtype='uint64')
+        grp.create_dataset('ATT/HEADER/CHUNKSIZE', data=[0], dtype='uint64')
 
         # size is rows then bool, int, float, string columns
         grp.create_dataset('ATT/HEADER/SIZE', data=[0,0,0,0,0], dtype='uint64')
@@ -695,7 +694,7 @@ class KeaImageReadWrite(KeaImageRead):
 
 
     def write_rat(self, dataframe, band, usage=None, chunksize=1000,
-                  compression=1):
+                  compression=1, shuffle=False):
         """
         Write a `pandas.DataFrame` as a raster attribute table for a
         given band.
@@ -727,7 +726,16 @@ class KeaImageReadWrite(KeaImageRead):
             The fast compression `lzf` can be used by setting
             `compression='lzf'`.
             Only used when `mode=w'.
+
+        :param shuffle:
+            If set to True, then the shuffle filter will be applied
+            prior to compression. Higher compression ratio's can be
+            achieved by applying the shuffle filter. Default is False.
         """
+        if not set([band]).issubset(self._band_datasets.keys()):
+            msg = "Band {} does not exist in the output file."
+            raise TypeError(msg.format(bands))
+
         # gather descriptive info of the dataframe
         dtypes = dataframe.dtypes
         columns = dataframe.columns
@@ -757,7 +765,7 @@ class KeaImageReadWrite(KeaImageRead):
         # write the chunksize
         if nrows < chunksize:
             chunksize = nrows
-        hdr['CHUNKSIZE'][()] = chunksize
+        hdr['CHUNKSIZE'][0] = chunksize
 
         # write the rat dimensions
         rat_size = hdr['SIZE']
@@ -788,7 +796,8 @@ class KeaImageReadWrite(KeaImageRead):
             dataset_name = RatDataTypes(dtype).name
             dset = data.create_dataset(dataset_name, shape=dims,
                                        dtype=out_dtype, chunks=(chunksize, 1),
-                                       compression=compression)
+                                       compression=compression,
+                                       shuffle=shuffle)
 
             # header fields
             hdr_data = numpy.zeros((ncols_dtype), dtype=hdr_dtype)
