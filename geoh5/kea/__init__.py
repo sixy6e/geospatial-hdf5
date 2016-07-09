@@ -334,14 +334,14 @@ def create_kea_image(fid, width, height, count, transform, crs, no_data,
         grp.create_dataset('LAYER_TYPE', shape=(1,), data=0)
         grp.create_dataset('LAYER_USAGE', shape=(1,), data=0)
 
-        # TODO: add attribute table write capability
+        # raster attribute table
         grp.create_group('ATT/DATA')
 
         # TODO need an example in order to flesh the neighbours section
         grp.create_group('ATT/NEIGHBOURS')
 
-        # TODO: add attribute table write capability
-        # this'll then make use of the table chunksize and table size
+        # rat chunksize and table size
+        # (nrows, bool ncols, int ncols, float ncols, string ncols)
         grp.create_dataset('ATT/HEADER/CHUNKSIZE', data=[0], dtype='uint64')
         grp.create_dataset('ATT/HEADER/SIZE', data=[0,0,0,0,0], dtype='uint64')
 
