@@ -660,7 +660,7 @@ class KeaImageReadWrite(KeaImageRead):
         self._fid[gname].create_dataset('DATATYPE', shape=(1,),
                                         data=kea_dtype, dtype='uint16')
 
-        grp.create_description('DESCRIPTION', shape=(1,), data=description)
+        grp.create_dataset('DESCRIPTION', shape=(1,), data=description)
 
         # we'll use a default, but allow the user to overide later
         grp.create_dataset('LAYER_TYPE', shape=(1,), data=0)
