@@ -58,7 +58,7 @@ def main():
               'blocksize': 100,
               'dtype': seg_data.dtype.name}
 
-    with kea.open('file-segments-rat-example.kea', 'w', **kwargs) as src:
+    with kea.open('attribute-table-example.kea', 'w', **kwargs) as src:
         src.write(seg_data, 1)
 
         # define the layer type as thematic (labelled, classified etc)
