@@ -639,7 +639,7 @@ class KeaImageReadWrite(KeaImageRead):
 
         dims = (self.height, self.width)
         kea_dtype = kc.KeaDataType[dtype].value
-        gname = 'Band{}'.format(band_num)
+        gname = 'BAND{}'.format(band_num)
 
         grp = self._fid.create_group(gname)
         grp.create_group('METADATA')
@@ -688,8 +688,8 @@ class KeaImageReadWrite(KeaImageRead):
         hdr = self._fid['HEADER']
         hdr['NUMBANDS'][0] = band_num
 
+        # flush the cache and re-initialise
         self.flush()
-
         self._read_kea()
 
 
@@ -710,7 +710,11 @@ class KeaImageReadWrite(KeaImageRead):
         :param usage:
             A `dict` with the `DataFrame` column names as the keys,
             and a useage description for each column name as the
-            values.
+            values. If not all column names in usage are located in
+            the `DataFrame` columns list then the missing columns will
+            be inserted with a 'Generic' usage tag.
+            If `usage` is set to `None`, then all columns contained
+            with the `DataFrame` will be assigned a `Generic` usage tag.
 
         :param chunksize:
             An integer representing the chunks (number of rows)
@@ -741,14 +745,18 @@ class KeaImageReadWrite(KeaImageRead):
         columns = dataframe.columns
         nrows, ncols = dataframe.shape
 
-        # create default usage names, or check for correct column names
+        # create default usage names
         if usage is None:
-            usage = {col: col for col in columns}
+            usage = {col: 'Generic' for col in columns}
         else:
             if not all([i in columns for i in usage]):
                 msg = "Column name(s) in usage not found in dataframe.\n{}"
                 raise IndexError(msg.format(usage.keys()))
-
+            else:
+                usage = usage.copy()
+                missing_cols = [col for col in columns if col not in usage]
+                for col in missing_cols:
+                    usage[col] = 'Generic'
 
         # what datatypes are we working with
         datatypes = {key.value: [] for key in RatDataTypes}
@@ -812,6 +820,6 @@ class KeaImageReadWrite(KeaImageRead):
 
             hdr.create_dataset(RatFieldTypes(dtype).name, data=hdr_data)
 
+        # flush the cache and re-initialise
         self.flush()
-
         self._read_kea()
