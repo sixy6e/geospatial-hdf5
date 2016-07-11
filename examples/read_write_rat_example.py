@@ -1,19 +1,32 @@
 #!/usr/bin/env python
 
 import numpy
+from scipy import ndimage
+import pandas
 from geoh5 import kea
 from geoh5.kea import common as kc
 # https://github.com/sixy6e/image-processing
 from image_processing.segmentation import Segments
 
+"""
+Once completed open the file in tuiview to see the colourised segments
+and the raster attribute table.
+"""
 
 def main():
+    """
+    Create a segmented array.
+    Compute basic stats for each segment:
+    (min, max, mean, standard deviation, total, area)
+    Write the segmented image and the raster attribute table.
+    """
 
     # data dimensions
     dims = (1000, 1000)
     
-    # create some data; we'll use the integers themselves as segment id's
-    seg_data = numpy.random.randint(0, 10001, dims)
+    # create some random data and segment via value > 5000
+    seg_data = numpy.random.randint(0, 10001, dims).astype('uint32')
+    seg_data, nlabels = ndimage.label(seg_data > 5000)
     
     # create some random data to calculate stats against
     data = numpy.random.ranf(dims)
@@ -43,21 +56,22 @@ def main():
               'compression': 4,
               'chunks': (100, 100),
               'blocksize': 100,
-              'dtype': data.dtype.name}
+              'dtype': seg_data.dtype.name}
 
     with kea.open('file-segments-rat-example.kea', 'w', **kwargs) as src:
-        src.write(data, 1)
-
-        # add a new band to contain the segments data
-        src.add_image_band(dtype=seg_data.dtype.name, chunks=kwargs['chunks'],
-                           blocksize=kwargs['blocksize'], compression=3,
-                           band_name='Segments')
+        src.write(seg_data, 1)
 
         # define the layer type as thematic (labelled, classified etc)
-        src.write_layer_type(2, kc.LayerType.thematic)
-
-        # write the segmented (classified) array
-        src.write(seg_data, 2)
+        src.write_layer_type(1, kc.LayerType.thematic)
 
         # write the stats table as an attribute table
-        src.write_rat(stats_table, 2)
+        usage = {"Red": "Red",
+                 "Green": "Green",
+                 "Blue": "Blue",
+                 "Alpha": "Alpha",
+                 "Histogram": "PixelCount"}
+        src.write_rat(stats_table, 1, usage=usage)
+
+
+if __name__ == '__main__':
+    main()
