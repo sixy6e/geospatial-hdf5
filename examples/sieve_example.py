@@ -44,9 +44,6 @@ def main():
     seg.sieve(30)
     print "Number of segments: {}".format(seg.n_segments)
 
-    # define the layer type as thematic (labelled, classified etc)
-    src.write_layer_type(1, kc.LayerType.thematic)
-
     # basic stats (min, max, mean, standard deviation, total, area)
     stats_table = seg.basic_statistics(data, dataframe=True)
     stats_table.set_index("Segment_IDs", inplace=True)
@@ -77,6 +74,9 @@ def main():
 
     with kea.open('sieve-example.kea', 'w', **kwargs) as src:
         src.write(seg.array, 1)
+
+        # define the layer type as thematic (labelled, classified etc)
+        src.write_layer_type(1, kc.LayerType.thematic)
 
         # write the stats table as an attribute table
         usage = {"Red": "Red",
