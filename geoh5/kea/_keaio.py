@@ -586,7 +586,7 @@ class KeaImageReadWrite(KeaImageRead):
 
     def add_image_band(self, band_name=None, description=None, dtype='uint8',
                        chunks=(256, 256), blocksize=256, compression=1,
-                       shuffle=False, no_data=None):
+                       shuffle=False, no_data=None, link=None):
         """
         Adds a new image band to the KEA file.
 
@@ -628,6 +628,18 @@ class KeaImageReadWrite(KeaImageRead):
         :param no_data:
             An integer or floating point value representing the no data or
             fillvalue of the image datasets.
+
+        :param link:
+            If set to a integer representing an existing band number,
+            then a HDF5 hard link will be created pointing to an
+            existing band number, rather than physically create a new
+            band dataset.
+            Useful if you have multiple raster attribute tables derived
+            from the same segmented image, but the stats are from
+            different points in time. So rather store the same image
+            multiple times, you can store it once and simply point the
+            other 'bands' to the real raster band, which will save
+            lots of disk space.
         """
         band_num = self.count + 1
         
@@ -641,20 +653,35 @@ class KeaImageReadWrite(KeaImageRead):
         kea_dtype = kc.KeaDataType[dtype].value
         gname = 'BAND{}'.format(band_num)
 
+        if link is not None:
+            if not set([link]).issubset(self._band_datasets.keys()):
+                msg = ("Band {} does not exist in the output file. "
+                       "Can't create a link to a band that doensn't exist.")
+                raise TypeError(msg.format(link))
+            
         grp = self._fid.create_group(gname)
         grp.create_group('METADATA')
         grp.create_group('OVERVIEWS')
 
-        dset = grp.create_dataset('DATA', shape=dims, dtype=dtype,
-                                  compression=compression, shuffle=shuffle,
-                                  chunks=chunks, fillvalue=no_data)
+        # do we create a hard link to an existing band
+        if link is None:
+            dset = grp.create_dataset('DATA', shape=dims, dtype=dtype,
+                                      compression=compression, shuffle=shuffle,
+                                      chunks=chunks, fillvalue=no_data)
+            # CLASS 'IMAGE', is a HDF recognised attribute
+            dset.attrs['CLASS'] = 'IMAGE'
+            dset.attrs['IMAGE_VERSION'] = kc.IMAGE_VERSION
 
-        # CLASS 'IMAGE', is a HDF recognised attribute
-        dset.attrs['CLASS'] = 'IMAGE'
-        dset.attrs['IMAGE_VERSION'] = kc.IMAGE_VERSION
+            # image blocksize
+            dset.attrs['BLOCK_SIZE'] = blocksize
+        else:
+            # no need to write attributes as they already exist in the
+            # band that we'll link to
+            grp['DATA'] = self._band_datasets[link]
+            dset = grp['DATA']
+            dtype = self.dtypes[link]
+            kea_dtype = kc.KeaDataType[dtype].value
 
-        # image blocksize
-        dset.attrs['BLOCK_SIZE'] = blocksize
 
         # KEA has defined their own numerical datatype mapping
         self._fid[gname].create_dataset('DATATYPE', shape=(1,),
