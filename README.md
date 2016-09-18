@@ -1,6 +1,6 @@
 # geospatial-hdf5
 
-A geospatial interface for h5py.
+A geospatial interface for HDF5 using h5py.
 Support for the KEA image format, + others to come.
 
 
