@@ -6,6 +6,7 @@ import h5py
 import collections
 import numpy
 import pandas
+import warnings
 
 from geoh5.kea import common as kc
 from geoh5.kea.common import LayerType
@@ -65,6 +66,7 @@ class KeaImageRead(object):
         self._transform = self._read_transform()
         self._band_groups = self._read_band_groups()
         self._band_datasets = self._read_band_datasets()
+        self._mask_datasets = self._read_mask_datasets()
         self._dtype, self._dtypes = self._read_dtypes()
         self._no_data = self._read_no_data()
         self._chunks = self._read_chunks()
@@ -156,6 +158,15 @@ class KeaImageRead(object):
             dset = bname_fmt.format(band)
             band_dsets[band] = self._fid[dset]
         return band_dsets
+
+
+    def _read_mask_datasets(self):
+        bname_fmt = 'BAND{}/MASK'
+        mask_dsets = {}
+        for band in range(1, self.count + 1):
+            dset = bname_fmt.format(band)
+            mask_dsets[band] = self._fid[dset] if dset in self._fid else None
+        return mask_dsets
 
 
     @property
@@ -582,6 +593,126 @@ class KeaImageReadWrite(KeaImageRead):
                 idx = numpy.s_[ys:ye, xs:xe]
                 dset = self._band_datasets[bands]
                 dset[idx] = data
+
+
+    def write_mask(self, data, bands, window=None):
+        """
+        Writes the image data to disk.
+
+        :param data:
+            A 2D or 3D `NumPy` array of type `bool` to be
+            written to disk. The data will be written to disk
+            with the values 0 & 255 in-place of False & True.
+
+        :param bands:
+            An integer or list of integers representing the
+            raster bands that will be written to.
+            The length of bands must match the `count`
+            dimension of `data`, i.e. (count, height, width).
+        
+        :param window:
+            A `tuple` containing ((ystart, ystop), (xstart, xstop))
+            indices for writing to a specific location within the
+            (height, width) 2D image.
+        """
+        # check for correct datatype
+        if data.dtype is not numpy.dtype('bool'):
+            msg = "Required datatype is bool, received {}"
+            raise TypeError(msg.format(data.dtype.name)
+
+        # available mask datasets
+        mdsets = self._mask_datasets
+
+        # do we have several bands to write
+        if isinstance(bands, collections.Sequence):
+            if not set(bands).issubset(self._band_datasets.keys()):
+                msg = "1 or more bands does not exist in the output file."
+                raise TypeError(msg)
+
+            if data.ndim != 3:
+                msg = "Data has {} dimensions and should be 3."
+                raise TypeError(msg.format(data.ndim))
+
+            nb = data.shape[0]
+            if nb != len(bands):
+                msg = "Number of bands, {},  doesn't match data shape, {}."
+                raise TypeError(msg.format(len(bands), nb))
+
+            if window is None:
+                for i, band in enumerate(bands):
+                    mdsets[band][data[i]] = 255
+            else:
+                ys, ye = window[0]
+                xs, xe = window[1]
+                idx = numpy.s_[ys:ye, xs:xe]
+                for i, band in enumerate(bands):
+                    mdsets[band][idx][data[i]] = 255
+        else:
+            band = bands
+            if not set([band]).issubset(self._band_datasets.keys()):
+                msg = "Band {} does not exist in the output file."
+                raise TypeError(msg.format(band))
+
+            if window is None:
+                mdsets[band][data] = 255
+            else:
+                ys, ye = window[0]
+                xs, xe = window[1]
+                idx = numpy.s_[ys:ye, xs:xe]
+                mdsets[band][idx][data] = 255
+
+
+    def create_mask_dataset(self, band, compression=1, shuffle=False):
+        """
+        Create a mask dataset for a given band.
+        The mask dataset will inherit the same chunksize as the
+        raster band that the mask refers to.
+        The datatype will be `uint8`.
+
+        :param band:
+            An integer representing the raster band number that the
+            mask refers to.
+
+        :param compression:
+            An integer in the range (0, 9), with 0 being low compression
+            and 9 being high compression using the `gzip` filter.
+            Default is 1. Will be set to `None` when `parallel` is set
+            to True.
+            The fast compression `lzf` can be used by setting
+            `compression='lzf'`.
+            Only used when `mode=w'.
+
+        :param shuffle:
+            If set to True, then the shuffle filter will be applied
+            prior to compression. Higher compression ratio's can be
+            achieved by applying the shuffle filter. Default is False.
+        """
+        if not set([band]).issubset(self._band_datasets.keys()):
+            msg = "Band {} does not exist in the output file."
+            raise TypeError(msg.format(band))
+
+        # available mask datasets
+        mdsets = self._mask_datasets
+
+        if mdsets[band] is not None:
+            msg = "Mask dataset for band: {} already exists!"
+            warning.warn(msg.format(band))
+            return
+
+        # create
+        bgroup = self._band_groups[band]
+        chunks = self._chunks[band]
+        dims = (self.height, self.width)
+        kwargs = {'shape': dims,
+                  'dtype': 'uint8',
+                  'chunks': chunks,
+                  'compression': compression,
+                  'shuffle': shuffle}
+        bgroup.create_dataset('MASK', **kwargs)
+
+        # flush the cache and re-initialise
+        self.flush()
+        self._read_kea()
 
 
     def add_image_band(self, band_name=None, description=None, dtype='uint8',
