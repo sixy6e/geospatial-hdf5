@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 
-from affine import Affine
-import h5py
 
 import collections
+import warnings
+from affine import Affine
 import numpy
 import pandas
-import warnings
 
 from geoh5.kea import common as kc
 from geoh5.kea.common import LayerType
@@ -40,8 +39,10 @@ class KeaImageRead(object):
 
         self._band_groups = None
         self._band_datasets = None
+        self._mask_datasets = None
 
         # band level info
+        self._dtype = None
         self._dtypes = None
         self._no_data = None
         self._chunks = None
