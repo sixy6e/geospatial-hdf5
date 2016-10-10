@@ -784,7 +784,7 @@ class KeaImageReadWrite(KeaImageRead):
 
         if mdsets[band] is not None:
             msg = "Mask dataset for band: {} already exists!"
-            warning.warn(msg.format(band))
+            warnings.warn(msg.format(band))
             return
 
         # create
@@ -984,7 +984,7 @@ class KeaImageReadWrite(KeaImageRead):
         """
         if not set([band]).issubset(self._band_datasets.keys()):
             msg = "Band {} does not exist in the output file."
-            raise TypeError(msg.format(bands))
+            raise TypeError(msg.format(band))
 
         # gather descriptive info of the dataframe
         dtypes = dataframe.dtypes
