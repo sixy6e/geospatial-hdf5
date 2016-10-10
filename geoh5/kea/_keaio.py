@@ -922,7 +922,8 @@ class KeaImageReadWrite(KeaImageRead):
         grp.create_dataset('ATT/HEADER/CHUNKSIZE', data=[0], dtype='uint64')
 
         # size is rows then bool, int, float, string columns
-        grp.create_dataset('ATT/HEADER/SIZE', data=[0,0,0,0,0], dtype='uint64')
+        grp.create_dataset('ATT/HEADER/SIZE', data=[0, 0, 0, 0, 0],
+	                   dtype='uint64')
 
         # do we have no a data value
         if no_data is not None:
