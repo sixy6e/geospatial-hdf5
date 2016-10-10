@@ -23,12 +23,12 @@ class KeaImageRead(object):
     The base class for the KEA image format.
     Sets up the `Read` interface.
     """
-    
+
     def __init__(self, fid):
         self._fid = fid
         self._header = None
         self._closed = False
-        
+
         # image dimensions
         self._width = None
         self._height = None
@@ -398,7 +398,7 @@ class KeaImageRead(object):
             dimension of `data`, i.e. (count, height, width).
             If `bands` is None, the default behaviour is to read
             all bands.
-        
+
         :param window:
             A `tuple` containing ((ystart, ystop), (xstart, xstop))
             indices for reading from a specific location within the
@@ -408,7 +408,7 @@ class KeaImageRead(object):
             A 2D or 3D `NumPy` array depending on whether `bands`
             is a `list` or single integer.
         """
-        # default behaviour to read all bands
+        # default behaviour is to read all bands
         if bands is None:
             bands = range(1, self.count + 1)
 
@@ -437,8 +437,96 @@ class KeaImageRead(object):
                 xs, xe = window[1]
                 idx = numpy.s_[ys:ye, xs:xe]
                 data = self._band_datasets[bands][idx]
-                
+
         return data
+
+
+    def read_mask(self, bands=None, window=None):
+        """
+        Reads the mask data into a `NumPy` array.
+
+        :param bands:
+            An integer or list of integers representing the
+            raster bands that will be read from.
+            The length of bands must match the `count`
+            dimension of `data`, i.e. (count, height, width).
+            If `bands` is None, the default behaviour is to read
+            all bands.
+
+        :param window:
+            A `tuple` containing ((ystart, ystop), (xstart, xstop))
+            indices for reading from a specific location within the
+            (height, width) 2D image.
+
+        :return:
+            A 2D or 3D `NumPy` array depending on whether `bands`
+            is a `list` or single integer.
+        """
+        # default behaviour is to read all bands
+        if bands is None:
+            bands = range(1, self.count + 1)
+
+        # do we have several bands to read
+        if isinstance(bands, collections.Sequence):
+            nb = len(bands)
+            if window is None:
+                mask = numpy.zeros((nb, self.height, self.width),
+                                   dtype='uint8')
+                for i, band in enumerate(bands):
+                    if self._mask_datasets[band] is not None:
+                        self._mask_datasets[band].read_direct(mask[i])
+                    else:
+                        no_data = self.no_data[band]
+                        if no_data is None:
+                            mask.fill(255)
+                        else:
+                            mask[i][:] = (self.read(band) != no_data) * 255
+            else:
+                ys, ye = window[0]
+                xs, xe = window[1]
+                ysize = ye - ys
+                xsize = xe - xs
+                idx = numpy.s_[ys:ye, xs:xe]
+                mask = numpy.zeros((nb, ysize, xsize), dtype='uint8')
+                for i, band in enumerate(bands):
+                    if self._mask_datasets[band] is None:
+                        no_data = self.no_data[band]
+                        if no_data is None:
+                            mask.fill(255)
+                        else:
+                            bdata = self.read(band, window=window)
+                            mask[i][:] = (bdata != no_data) * 255
+                    else:
+                        self._mask_datasets[band].read_direct(mask[i], idx)
+        else:
+            if window is None:
+                if self._mask_datasets[band] is None:
+                    dims = (self.height, self.width)
+                    mask = numpy.zeros(dims, dtype='uint8')
+                    no_data = self.no_data[band]
+                    if no_data is None:
+                        mask.fill(255)
+                    else:
+                        mask[:] = (self.read(bands) != no_data) * 255
+                else:
+                    mask = self._mask_datasets[bands][:]
+            else:
+                ys, ye = window[0]
+                xs, xe = window[1]
+                idx = numpy.s_[ys:ye, xs:xe]
+                if self._mask_datasets[band] is None:
+                    ysize = ye - ys
+                    xsize = xe - xs
+                    mask = numpy.zeros((ysize, xsize), dtype='uint8')
+                    if no_data is None:
+                        mask.fill(255)
+                    else:
+                        bdata = self.read(bands, window=window)
+                        mask[:] = (bdata != no_data) * 255
+                else:
+                    mask = self._mask_datasets[bands][idx]
+
+        return mask
 
 
 class KeaImageReadWrite(KeaImageRead):
@@ -547,7 +635,7 @@ class KeaImageReadWrite(KeaImageRead):
             raster bands that will be written to.
             The length of bands must match the `count`
             dimension of `data`, i.e. (count, height, width).
-        
+
         :param window:
             A `tuple` containing ((ystart, ystop), (xstart, xstop))
             indices for writing to a specific location within the
@@ -609,7 +697,7 @@ class KeaImageReadWrite(KeaImageRead):
             raster bands that will be written to.
             The length of bands must match the `count`
             dimension of `data`, i.e. (count, height, width).
-        
+
         :param window:
             A `tuple` containing ((ystart, ystop), (xstart, xstop))
             indices for writing to a specific location within the
@@ -618,7 +706,7 @@ class KeaImageReadWrite(KeaImageRead):
         # check for correct datatype
         if data.dtype is not numpy.dtype('bool'):
             msg = "Required datatype is bool, received {}"
-            raise TypeError(msg.format(data.dtype.name)
+            raise TypeError(msg.format(data.dtype.name))
 
         # available mask datasets
         mdsets = self._mask_datasets
@@ -773,7 +861,7 @@ class KeaImageReadWrite(KeaImageRead):
             lots of disk space.
         """
         band_num = self.count + 1
-        
+
         if description is None:
             description = ''
 
@@ -789,7 +877,7 @@ class KeaImageReadWrite(KeaImageRead):
                 msg = ("Band {} does not exist in the output file. "
                        "Can't create a link to a band that doensn't exist.")
                 raise TypeError(msg.format(link))
-            
+
         grp = self._fid.create_group(gname)
         grp.create_group('METADATA')
         grp.create_group('OVERVIEWS')
