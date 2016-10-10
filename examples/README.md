@@ -29,6 +29,12 @@ Appending New Bands
 
 Appending new bands in the KEA format is very simple, and can be of different data types
 compared to existing bands.
+New bands can also be a reference/link (think of a UNIX symlink or Window shortcut) to
+an already existing band. This is useful for when a raster image such as a rasterised
+geometry set is the same through time, but the raster attribute table (RAT) containing
+various statistics does change. By using a reference/link, a user doesn't need to
+store the same image multiple times in order to have additional RAT's. It saves on
+disk space, and makes the file more portable by being smaller.
 
 
 Additional Compression Filters
