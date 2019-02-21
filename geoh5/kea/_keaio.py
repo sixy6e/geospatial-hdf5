@@ -307,7 +307,7 @@ class KeaImageRead(object):
             rat_info = hdr['SIZE'][:]
             nrows = rat_info[0]
             rat_fields = rat_info[1:]
-            names = range(rat_fields.sum())
+            names = list(range(rat_fields.sum()))
 
             # read the field types
             rat_data = {}
